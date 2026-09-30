@@ -1,6 +1,6 @@
-# GridTag 0.0.1 (beta) — pre-release
+# XiPHiAS GridTag 0.0.1 (beta) — pre-release
 
-Eerste pre-release van GridTag: nummerherkenning op motorsportfoto's, validatie tegen de
+Eerste pre-release van XiPHiAS GridTag: nummerherkenning op motorsportfoto's, validatie tegen de
 entrylist en het wegschrijven van IPTC-metadata in Lightroom Classic.
 
 **Let op:** dit is een beta. De vision-modellen zijn nog niet getraind/gekoppeld, dus zonder
@@ -22,7 +22,7 @@ model-configuratie levert `gridtag run` per foto `error` met reden `no_preview` 
 
 ### Lightroom Classic-plugin (Lua)
 - Verzamelt de Picks, schrijft `manifest.json`, roept de CLI aan en past `results.json` toe op de catalogus.
-- Schrijft uitsluitend de velden die GridTag bezit, in korte write-gates (chunks).
+- Schrijft uitsluitend de velden die XiPHiAS GridTag bezit, in korte write-gates (chunks).
 - Handmatige correctie via het custom veld `manualNumber`.
 - Review-collecties voor `review`, `noCar` en `error`.
 
@@ -36,7 +36,7 @@ model-configuratie levert `gridtag run` per foto `error` met reden `no_preview` 
 
 ## Tests
 
-- 62 unit tests (`dotnet test GridTag.slnx`) — groen, 0 warnings.
+- 62 unit tests (`dotnet test XiPHiAS.GridTag.slnx`) — groen, 0 warnings.
 - Golden XMP-tests voor `#3` en `#69`.
 - Nieuwe Lua-testharness (`lua run_lua_tests.lua`) die `CatalogWriter` tegen gestubde `Lr*`-API's test: status/manual-bescherming, keyword-opruiming, chunking en het overleven van een falende `setRawMetadata`.
 
@@ -48,8 +48,8 @@ model-configuratie levert `gridtag run` per foto `error` met reden `no_preview` 
 
 ## Installatie
 
-1. `dotnet build GridTag.slnx`
-2. Plugin-map `lightroom/GridTag.lrdevplugin` in Lightroom Classic toevoegen via Bestand → Plug-inbeheer.
+1. `dotnet build XiPHiAS.GridTag.slnx`
+2. Plugin-map `lightroom/XiPHiAS.GridTag.lrdevplugin` in Lightroom Classic toevoegen via Bestand → Plug-inbeheer.
 3. CLI-pad en chunkgrootte instellen in de plug-invoorkeuren.
 
 Vereist .NET 10 en (voor de plugin) Lightroom Classic 6.0 of nieuwer.

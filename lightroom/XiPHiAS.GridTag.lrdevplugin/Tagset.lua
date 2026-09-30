@@ -1,5 +1,5 @@
 return {
-    title = "GridTag",
+    title = "XiPHiAS GridTag",
     id = "gridtag",
     presetFields = {
         "status",

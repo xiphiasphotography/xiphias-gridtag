@@ -2,20 +2,20 @@ return {
     LrSdkVersion = 6.0,
     LrSdkMinimumVersion = 6.0,
     LrToolkitIdentifier = "net.xiphias.gridtag",
-    LrPluginName = "GridTag",
+    LrPluginName = "XiPHiAS GridTag",
     LrLibraryMenuItems = {
         {
-            title = "GridTag: tag Picks",
+            title = "XiPHiAS GridTag: tag Picks",
             file = "Runner.lua",
             enabledWhen = "photosSelected",
         },
         {
-            title = "GridTag: verwerk handmatige nummers",
+            title = "XiPHiAS GridTag: verwerk handmatige nummers",
             file = "ManualRunner.lua",
             enabledWhen = "photosSelected",
         },
         {
-            title = "GridTag: instellingen...",
+            title = "XiPHiAS GridTag: instellingen...",
             file = "Settings.lua",
         },
     },

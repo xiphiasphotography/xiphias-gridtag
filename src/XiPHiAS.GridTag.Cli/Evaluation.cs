@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using GridTag.Core;
+using XiPHiAS.GridTag.Core;
 
-namespace GridTag.Cli;
+namespace XiPHiAS.GridTag.Cli;
 
 /// <summary>One ground-truth label used by the evaluation harness.</summary>
 public sealed record EvaluationLabel(string Path, IReadOnlyList<string> Numbers);

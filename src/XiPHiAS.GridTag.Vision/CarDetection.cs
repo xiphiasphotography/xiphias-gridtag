@@ -1,11 +1,11 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Text.Json;
-using GridTag.Core;
+using XiPHiAS.GridTag.Core;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 
-namespace GridTag.Vision;
+namespace XiPHiAS.GridTag.Vision;
 
 /// <summary>Configuration for an ONNX car detector.</summary>
 public sealed record CarDetectorConfig(

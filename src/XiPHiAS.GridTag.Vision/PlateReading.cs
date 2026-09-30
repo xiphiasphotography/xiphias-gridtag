@@ -1,10 +1,10 @@
 using System.Drawing;
 using System.Text.Json;
-using GridTag.Core;
+using XiPHiAS.GridTag.Core;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 
-namespace GridTag.Vision;
+namespace XiPHiAS.GridTag.Vision;
 
 /// <summary>Integer crop rectangle in original preview pixels.</summary>
 public sealed record CropRectangle(int Left, int Top, int Width, int Height);

@@ -34,7 +34,7 @@ local function execute(manual)
     local selected = catalog:getMultipleSelectedPhotos() or {}
     local manifest = Manifest.build(catalog, manual)
     if #manifest.photos == 0 then
-        LrDialogs.message("GridTag", manual and "Geen foto's met een handmatig nummer gevonden." or "Geen Picks geselecteerd.")
+        LrDialogs.message("XiPHiAS GridTag", manual and "Geen foto's met een handmatig nummer gevonden." or "Geen Picks geselecteerd.")
         return
     end
 
@@ -61,14 +61,14 @@ local function execute(manual)
 
     local results = Results.validateForManifest(Results.read(resultsPath), manifest)
     Writer.apply(catalog, photoIndex(selected), results)
-    LrDialogs.message("GridTag", "GridTag heeft " .. tostring(#results.photos) .. " foto('s) verwerkt.")
+    LrDialogs.message("XiPHiAS GridTag", "XiPHiAS GridTag heeft " .. tostring(#results.photos) .. " foto('s) verwerkt.")
 end
 
 function Run.execute(manual)
     local ok, message = LrTasks.pcall(function() execute(manual) end)
     if not ok then
         logger:error(tostring(message))
-        LrDialogs.message("GridTag fout", tostring(message), "ok")
+        LrDialogs.message("XiPHiAS GridTag fout", tostring(message), "ok")
     end
 end
 

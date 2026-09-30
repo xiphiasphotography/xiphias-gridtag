@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace GridTag.Core.Tests;
+namespace XiPHiAS.GridTag.Core.Tests;
 
 public sealed class NumberMatcherTests
 {

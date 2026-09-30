@@ -1,4 +1,4 @@
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>Represents one OCR or vision hypothesis for a start number.</summary>
 /// <param name="Text">The raw hypothesis text.</param>

@@ -1,6 +1,6 @@
-using GridTag.Core;
+using XiPHiAS.GridTag.Core;
 
-namespace GridTag.Vision;
+namespace XiPHiAS.GridTag.Vision;
 
 /// <summary>Null preview provider used when no preview is available.</summary>
 public sealed class StubRawPreviewProvider : IRawPreviewProvider

@@ -1,23 +1,23 @@
-# AGENTS.md — GridTag Lightroom Classic plugin
+# AGENTS.md — XiPHiAS GridTag Lightroom Classic plugin
 
-Instructions for coding agents working under `lightroom/`. Read the repository root `AGENTS.md` first. This file adds Lightroom-specific rules for `lightroom/GridTag.lrdevplugin/` and wins on conflict inside this subtree.
+Instructions for coding agents working under `lightroom/`. Read the repository root `AGENTS.md` first. This file adds Lightroom-specific rules for `lightroom/XiPHiAS.GridTag.lrdevplugin/` and wins on conflict inside this subtree.
 
 ## 1. Scope
 
-This folder contains the **thin Lightroom Classic adapter/UI layer** for GridTag.
+This folder contains the **thin Lightroom Classic adapter/UI layer** for XiPHiAS GridTag.
 
 The plugin may:
 - collect the final Lightroom Picks that the owner already selected and edited;
 - build `manifest.json` for the C# CLI;
 - launch `gridtag.exe` outside catalog write gates;
 - read and validate `results.json`;
-- apply only GridTag-owned metadata to the Lightroom catalog;
-- maintain GridTag custom metadata and review collections;
+- apply only XiPHiAS GridTag-owned metadata to the Lightroom catalog;
+- maintain XiPHiAS GridTag custom metadata and review collections;
 - provide the manual-number correction flow and plugin settings.
 
 The plugin must **not** contain recognition, matching, entry-list, session-resolution or field-generation business logic. Those belong in the C# projects. Do not reimplement Core logic in Lua as a fallback.
 
-GridTag is not a culling, editing or export plugin. The owner processes the images first; GridTag only enriches the final Picks with car-specific metadata.
+XiPHiAS GridTag is not a culling, editing or export plugin. The owner processes the images first; XiPHiAS GridTag only enriches the final Picks with car-specific metadata.
 
 ## 2. Runtime and language
 
@@ -38,12 +38,12 @@ The plugin operates in this order:
 
 1. Lightroom Classic already contains the owner's selected and edited photos.
 2. The owner marks final photos as **Pick**.
-3. Menu action `GridTag: tag Picks` collects only photos with `pickStatus == 1`.
+3. Menu action `XiPHiAS GridTag: tag Picks` collects only photos with `pickStatus == 1`.
 4. The plugin writes a versioned `manifest.json` into a run-specific temporary/work folder.
 5. The plugin starts `gridtag.exe run ...` with `LrTasks.execute` **outside** a write gate.
 6. The plugin reads and validates versioned `results.json`.
 7. The plugin applies successful results to the Lightroom catalog in short write-gate chunks.
-8. Review/no-car/error collections and GridTag custom metadata are updated.
+8. Review/no-car/error collections and XiPHiAS GridTag custom metadata are updated.
 9. The owner reviews remaining cases and exports from Lightroom normally.
 
 Do not add automatic processing on import, selection, rating changes, develop changes, export or folder watching unless the owner explicitly asks for it.
@@ -75,23 +75,23 @@ Normal analysis mode:
 
 Manual mode:
 - operates on the photos targeted by the documented manual workflow;
-- reads GridTag's custom `manualNumber` field;
+- reads XiPHiAS GridTag's custom `manualNumber` field;
 - passes it to the same C# CLI;
 - does not bypass C# validation against the entry list.
 
-A photo with GridTag status `manual` must not be replaced by a later automatic run unless the owner explicitly performs a future reset/clear action that is designed for that purpose.
+A photo with XiPHiAS GridTag status `manual` must not be replaced by a later automatic run unless the owner explicitly performs a future reset/clear action that is designed for that purpose.
 
 ## 6. Metadata ownership
 
-GridTag owns exactly these photo fields:
+XiPHiAS GridTag owns exactly these photo fields:
 - `headline`
 - `caption`
 - `altTextAccessibility`
 - `extDescrAccessibility`
 - `personShown`
-- keywords previously created by GridTag and recorded in GridTag plugin metadata
+- keywords previously created by XiPHiAS GridTag and recorded in XiPHiAS GridTag plugin metadata
 
-GridTag custom plugin metadata may include:
+XiPHiAS GridTag custom plugin metadata may include:
 - `status`
 - `number`
 - `manualNumber`
@@ -110,19 +110,19 @@ Do **not** write or modify:
 - unrelated keywords;
 - filesystem XMP sidecars or RAW files.
 
-Never call undocumented metadata-save/read helpers to force sidecar synchronisation. GridTag writes to the Lightroom catalog only.
+Never call undocumented metadata-save/read helpers to force sidecar synchronisation. XiPHiAS GridTag writes to the Lightroom catalog only.
 
 ## 7. Idempotent metadata application
 
-Re-running GridTag must be safe.
+Re-running XiPHiAS GridTag must be safe.
 
-Before adding new GridTag keywords for a photo:
-1. read the GridTag-owned keyword list stored in plugin metadata;
-2. remove only those old GridTag keyword objects from that photo;
+Before adding new XiPHiAS GridTag keywords for a photo:
+1. read the XiPHiAS GridTag-owned keyword list stored in plugin metadata;
+2. remove only those old XiPHiAS GridTag keyword objects from that photo;
 3. leave all other keywords untouched;
 4. create/reuse required new keywords;
 5. add the new keywords;
-6. save the exact new GridTag keyword names back into plugin metadata.
+6. save the exact new XiPHiAS GridTag keyword names back into plugin metadata.
 
 Do not identify owned keywords by naming heuristics such as `#`, team name or hierarchy. Ownership comes from the plugin's recorded metadata.
 
@@ -143,7 +143,7 @@ Rules:
 
 Use defensive `pcall` around `photo:setRawMetadata` calls because some fields depend on the installed Lightroom SDK/version. Log the photo ID, field and error when a write fails.
 
-Do not silently convert a partial metadata write into `auto`. If required GridTag-owned fields fail in a way that makes the result incomplete, store/report an error and put the photo into Review according to the agreed behaviour.
+Do not silently convert a partial metadata write into `auto`. If required XiPHiAS GridTag-owned fields fail in a way that makes the result incomplete, store/report an error and put the photo into Review according to the agreed behaviour.
 
 ## 9. CLI execution
 
@@ -192,7 +192,7 @@ Do not turn an unverified assumption into permanent plugin architecture without 
 
 ## 11. Custom metadata
 
-Declare GridTag custom metadata centrally and keep its IDs stable after release.
+Declare XiPHiAS GridTag custom metadata centrally and keep its IDs stable after release.
 
 Expected fields include:
 - status: enum `auto | review | manual | noCar | error`
@@ -232,8 +232,8 @@ If collection SDK behaviour is still unverified on the owner's Lightroom version
 The supported flow is:
 
 1. Owner selects one or more photos in Lightroom.
-2. Owner enters `manualNumber` in GridTag custom metadata. Multiple numbers may be separated by comma, semicolon or spaces; first number is primary as defined by the root contract.
-3. Owner runs `GridTag: verwerk handmatige nummers`.
+2. Owner enters `manualNumber` in XiPHiAS GridTag custom metadata. Multiple numbers may be separated by comma, semicolon or spaces; first number is primary as defined by the root contract.
+3. Owner runs `XiPHiAS GridTag: verwerk handmatige nummers`.
 4. Plugin sends those values to the normal C# CLI through `manifest.json`.
 5. C# validates the numbers against the event entry list and generates fields.
 6. Valid result becomes status `manual`; invalid input becomes `review` with e.g. `unknown_number:<n>`.
@@ -268,7 +268,7 @@ Differentiate at least:
 - per-photo `error` status;
 - Lightroom metadata write failure.
 
-Use concise Dutch dialogs/messages for errors that require user action. Put technical details in the GridTag log.
+Use concise Dutch dialogs/messages for errors that require user action. Put technical details in the XiPHiAS GridTag log.
 
 A per-photo processing failure must not abort metadata application for unrelated valid photos unless the overall result contract itself is corrupt.
 
@@ -298,7 +298,7 @@ There is no substitute for testing the plugin inside Lightroom Classic.
 
 For every plugin task:
 1. run Lua syntax checking when Lua 5.1 tooling is available:
-   `luac5.1 -p lightroom/GridTag.lrdevplugin/*.lua`
+   `luac5.1 -p lightroom/XiPHiAS.GridTag.lrdevplugin/*.lua`
 2. keep JSON contract examples compatible with the C# tests;
 3. manually test changed Lightroom SDK behaviour in the owner's LrC when required;
 4. record newly verified/unverified SDK behaviour in `docs/open-questions.md`;
@@ -312,7 +312,7 @@ A Lightroom-plugin change is done when:
 - Lua syntax check is clean where tooling is available;
 - root JSON contracts still match the C# side;
 - CLI execution occurs outside write gates;
-- catalog writes are bounded/chunked and touch only GridTag-owned fields;
+- catalog writes are bounded/chunked and touch only XiPHiAS GridTag-owned fields;
 - reruns remain idempotent;
 - manual status is protected from automatic overwrite;
 - affected Review/GeenAuto behaviour has been checked;

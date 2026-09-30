@@ -1,10 +1,10 @@
 using System.Text.Json;
-using GridTag.Core;
-using GridTag.Vision;
+using XiPHiAS.GridTag.Core;
+using XiPHiAS.GridTag.Vision;
 
-namespace GridTag.Cli;
+namespace XiPHiAS.GridTag.Cli;
 
-/// <summary>Command-line dispatcher for GridTag.</summary>
+/// <summary>Command-line dispatcher for XiPHiAS GridTag.</summary>
 public static class CliApp
 {
 	private const string ToolVersion = "0.1.0";

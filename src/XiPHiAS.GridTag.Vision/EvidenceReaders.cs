@@ -1,6 +1,6 @@
-using GridTag.Core;
+using XiPHiAS.GridTag.Core;
 
-namespace GridTag.Vision;
+namespace XiPHiAS.GridTag.Vision;
 
 /// <summary>Produces a car-model observation from a preview.</summary>
 public interface ICarModelClassifier

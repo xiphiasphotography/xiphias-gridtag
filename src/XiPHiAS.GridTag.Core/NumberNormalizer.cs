@@ -1,4 +1,4 @@
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>Normalizes entry-list numbers without interpreting them as integers.</summary>
 public static class NumberNormalizer

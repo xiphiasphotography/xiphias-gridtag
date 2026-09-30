@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>Loads the semicolon-delimited event entry list contract.</summary>
 public sealed class EntryListLoader

@@ -1,4 +1,4 @@
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>Processes one manifest item through manual, no-preview, detection and matching stages.</summary>
 public sealed class TaggingPipeline

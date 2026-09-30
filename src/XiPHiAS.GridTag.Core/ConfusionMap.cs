@@ -1,4 +1,4 @@
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>The fixed symmetric digit confusions specified in AGENTS.md.</summary>
 public sealed class ConfusionMap

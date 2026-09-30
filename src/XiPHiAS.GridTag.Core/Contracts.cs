@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>Single manifest photo as passed from the Lightroom plugin to the CLI.</summary>
 /// <param name="Id">The Lightroom local identifier.</param>

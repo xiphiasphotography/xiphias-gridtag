@@ -5,7 +5,7 @@
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/GridTag.Cli/GridTag.Cli.csproj" />
+    <ProjectReference Include="../../src/XiPHiAS.GridTag.Cli/XiPHiAS.GridTag.Cli.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />

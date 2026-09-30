@@ -1,8 +1,8 @@
 using System.Text.Json;
-using GridTag.Cli;
+using XiPHiAS.GridTag.Cli;
 using Xunit;
 
-namespace GridTag.Cli.Tests;
+namespace XiPHiAS.GridTag.Cli.Tests;
 
 public sealed class CliTests
 {

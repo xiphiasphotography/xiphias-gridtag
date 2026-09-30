@@ -1,8 +1,8 @@
 using System.Xml.Linq;
-using GridTag.Core;
+using XiPHiAS.GridTag.Core;
 using Xunit;
 
-namespace GridTag.Core.Tests;
+namespace XiPHiAS.GridTag.Core.Tests;
 
 public sealed class FieldBuilderGoldenTests
 {

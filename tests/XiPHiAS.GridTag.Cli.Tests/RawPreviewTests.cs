@@ -1,10 +1,10 @@
 using System.Drawing;
 using System.Drawing.Imaging;
-using GridTag.Cli;
-using GridTag.Vision;
+using XiPHiAS.GridTag.Cli;
+using XiPHiAS.GridTag.Vision;
 using Xunit;
 
-namespace GridTag.Cli.Tests;
+namespace XiPHiAS.GridTag.Cli.Tests;
 
 public sealed class RawPreviewTests
 {

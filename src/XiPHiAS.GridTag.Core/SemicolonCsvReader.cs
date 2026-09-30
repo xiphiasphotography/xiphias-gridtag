@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 internal static class SemicolonCsvReader
 {

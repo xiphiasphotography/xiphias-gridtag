@@ -1,4 +1,4 @@
--- Entry point for the GridTag Lua plugin tests.
+-- Entry point for the XiPHiAS GridTag Lua plugin tests.
 --
 -- Runs the harness in tests/GridTag.Lua.Tests with a plain Lua 5.1 interpreter
 -- (Lightroom's Lua version). No Lightroom installation is required.

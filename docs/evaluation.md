@@ -14,7 +14,7 @@ Een lege `numbers`-waarde betekent dat de foto geen auto heeft. Nummers worden m
 ## Gebruik
 
 ```text
-dotnet run --project src/GridTag.Cli -- eval --labels samples/labels.example.csv --entrylist samples/entrylist.csv --session samples/session.example.json
+dotnet run --project src/XiPHiAS.GridTag.Cli -- eval --labels samples/labels.example.csv --entrylist samples/entrylist.csv --session samples/session.example.json
 ```
 
 Het commando schrijft geen foto’s en verandert geen labels. De huidige command-line evaluator gebruikt de lokale stub providers. Daardoor is de huidige meting een contract- en pipeline-baseline: zonder vision-preview komen foto’s op `review` met `no_preview`. De fake providers in de tests maken model-onafhankelijke evaluatie van de rekenregels mogelijk.

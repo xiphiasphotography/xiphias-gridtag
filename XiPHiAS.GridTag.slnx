@@ -1,12 +1,12 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/GridTag.Core/GridTag.Core.csproj" />
-    <Project Path="src/GridTag.Vision/GridTag.Vision.csproj" />
-    <Project Path="src/GridTag.Cli/GridTag.Cli.csproj" />
-    <Project Path="src/GridTag.Review/GridTag.Review.csproj" />
+    <Project Path="src/XiPHiAS.GridTag.Core/XiPHiAS.GridTag.Core.csproj" />
+    <Project Path="src/XiPHiAS.GridTag.Vision/XiPHiAS.GridTag.Vision.csproj" />
+    <Project Path="src/XiPHiAS.GridTag.Cli/XiPHiAS.GridTag.Cli.csproj" />
+    <Project Path="src/XiPHiAS.GridTag.Review/XiPHiAS.GridTag.Review.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/GridTag.Cli.Tests/GridTag.Cli.Tests.csproj" />
-    <Project Path="tests/GridTag.Core.Tests/GridTag.Core.Tests.csproj" />
+    <Project Path="tests/XiPHiAS.GridTag.Cli.Tests/XiPHiAS.GridTag.Cli.Tests.csproj" />
+    <Project Path="tests/XiPHiAS.GridTag.Core.Tests/XiPHiAS.GridTag.Core.Tests.csproj" />
   </Folder>
 </Solution>

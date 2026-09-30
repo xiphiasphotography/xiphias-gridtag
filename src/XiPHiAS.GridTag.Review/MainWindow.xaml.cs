@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 
-namespace GridTag.Review;
+namespace XiPHiAS.GridTag.Review;
 
 public partial class MainWindow : Window
 {
@@ -17,7 +17,7 @@ public partial class MainWindow : Window
 
     private void OpenResultsClick(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog { Filter = "GridTag results|results.json|JSON files|*.json" };
+        var dialog = new OpenFileDialog { Filter = "XiPHiAS GridTag results|results.json|JSON files|*.json" };
         if (dialog.ShowDialog() != true)
             return;
 
@@ -27,7 +27,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            MessageBox.Show(this, exception.Message, "GridTag Review", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(this, exception.Message, "XiPHiAS GridTag Review", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

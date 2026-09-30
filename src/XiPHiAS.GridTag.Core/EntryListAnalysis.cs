@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>Precomputed number relationships within one event's entry list.</summary>
 public sealed class EntryListAnalysis

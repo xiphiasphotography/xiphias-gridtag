@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>One car-model observation produced by a vision classifier.</summary>
 /// <param name="Model">Recognized model or make text.</param>

@@ -5,14 +5,14 @@ Dit plan beschrijft handmatige tests in Lightroom Classic. De tests zijn nodig o
 ## Voorbereiding
 
 - Gebruik een kopie van een catalogus en enkele testfoto's.
-- Installeer de plugin uit `lightroom/GridTag.lrdevplugin`.
+- Installeer de plugin uit `lightroom/XiPHiAS.GridTag.lrdevplugin`.
 - Configureer `gridtag.exe`, `entrylist.csv` en `session.json`.
 - Controleer dat de testcatalogus eigen Photo Mechanic keywords en metadata bevat.
 - Maak testsets met 5 foto's en met 300 foto's.
 
 ## Basisworkflow
 
-- [ ] Selecteer Picks en start `GridTag: tag Picks`.
+- [ ] Selecteer Picks en start `XiPHiAS GridTag: tag Picks`.
 - [ ] Controleer dat alleen foto's met `pickStatus == 1` in `manifest.json` staan.
 - [ ] Controleer dat niet-Picks niet veranderen en niet worden verwerkt.
 - [ ] Controleer dat het CLI-proces buiten een Lightroom write gate draait.
@@ -25,17 +25,17 @@ Dit plan beschrijft handmatige tests in Lightroom Classic. De tests zijn nodig o
 ## Metadata en eigenaarschap
 
 - [ ] Controleer dat `headline`, `caption`, `altTextAccessibility`, `extDescrAccessibility` en `personShown` correct worden geschreven.
-- [ ] Controleer dat status, nummer, confidence, reasons, session, keywords en toolVersion in de GridTag-velden terechtkomen.
+- [ ] Controleer dat status, nummer, confidence, reasons, session, keywords en toolVersion in de XiPHiAS GridTag-velden terechtkomen.
 - [ ] Controleer dat creator, credit, copyright, locatie, event, TransmissionReference, rating, label, Pick/Reject en develop-instellingen ongewijzigd blijven.
-- [ ] Controleer dat bestaande niet-GridTag keywords behouden blijven.
+- [ ] Controleer dat bestaande niet-XiPHiAS GridTag keywords behouden blijven.
 - [ ] Controleer dat RAW-bestanden en XMP-sidecars niet worden gewijzigd.
 
 ## Idempotentie en collections
 
 - [ ] Voer dezelfde run tweemaal uit.
-- [ ] Controleer dat GridTag-keywords niet worden gedupliceerd.
-- [ ] Controleer dat oude GridTag-keywords worden verwijderd wanneer de tweede run andere keywords oplevert.
-- [ ] Controleer dat niet-GridTag keywords bij beide runs blijven bestaan.
+- [ ] Controleer dat XiPHiAS GridTag-keywords niet worden gedupliceerd.
+- [ ] Controleer dat oude XiPHiAS GridTag-keywords worden verwijderd wanneer de tweede run andere keywords oplevert.
+- [ ] Controleer dat niet-XiPHiAS GridTag keywords bij beide runs blijven bestaan.
 - [ ] Controleer dat `auto` en `manual` uit `GridTag Review` en `GridTag GeenAuto` worden verwijderd.
 - [ ] Controleer dat `review` in `GridTag Review` komt.
 - [ ] Controleer dat `noCar` in `GridTag GeenAuto` komt.
@@ -44,7 +44,7 @@ Dit plan beschrijft handmatige tests in Lightroom Classic. De tests zijn nodig o
 
 ## Manual flow
 
-- [ ] Selecteer een foto, vul `manualNumber` met `69` in en start `GridTag: verwerk handmatige nummers`.
+- [ ] Selecteer een foto, vul `manualNumber` met `69` in en start `XiPHiAS GridTag: verwerk handmatige nummers`.
 - [ ] Controleer status `manual`, velden, keywords en personShown.
 - [ ] Vul twee nummers in als `69, 3`.
 - [ ] Controleer dat 69 de primaire auto is en dat keywords/persons van beide auto's worden toegevoegd.

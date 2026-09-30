@@ -3,9 +3,9 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
-using GridTag.Core;
+using XiPHiAS.GridTag.Core;
 
-namespace GridTag.Vision;
+namespace XiPHiAS.GridTag.Vision;
 
 /// <summary>Identifies where a decoded preview came from.</summary>
 public enum RawPreviewSource

@@ -1,5 +1,5 @@
 #!/usr/bin/env lua
--- Minimal test harness for the GridTag Lightroom plugin modules.
+-- Minimal test harness for the XiPHiAS GridTag Lightroom plugin modules.
 -- Runs with plain Lua 5.1 and needs no Lightroom installation: every Lr* API
 -- the modules touch is stubbed below.
 --
@@ -32,7 +32,7 @@ end
 local function pluginDirectory()
     local script = arg and arg[0] or "tests/GridTag.Lua.Tests/test_runner.lua"
     local directory = script:match("^(.*)[/\\][^/\\]*$") or "."
-    return directory .. "/../../lightroom/GridTag.lrdevplugin"
+    return directory .. "/../../lightroom/XiPHiAS.GridTag.lrdevplugin"
 end
 
 local pluginPath = pluginDirectory()
@@ -209,7 +209,7 @@ return function()
     checkEqual(countKeywords(state.keywordAdds, "#69"), 1, "#69 should be added once")
     checkEqual(state.pluginProperties["11:keywords"], '["Emil Frey Racing","#69"]', "applied keywords must be tracked")
 
-    io.write("CatalogWriter.apply clears stale GridTag keywords before adding new ones\n")
+    io.write("CatalogWriter.apply clears stale XiPHiAS GridTag keywords before adding new ones\n")
     Lua.install()
     Writer = require("CatalogWriter")
     catalog = makeCatalog()

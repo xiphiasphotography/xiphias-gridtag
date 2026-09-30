@@ -4,8 +4,8 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/GridTag.Core/GridTag.Core.csproj" />
-    <ProjectReference Include="../../src/GridTag.Vision/GridTag.Vision.csproj" />
+    <ProjectReference Include="../../src/XiPHiAS.GridTag.Core/XiPHiAS.GridTag.Core.csproj" />
+    <ProjectReference Include="../../src/XiPHiAS.GridTag.Vision/XiPHiAS.GridTag.Vision.csproj" />
     <None Include="../../samples/entrylist.csv" Link="samples/entrylist.csv" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>

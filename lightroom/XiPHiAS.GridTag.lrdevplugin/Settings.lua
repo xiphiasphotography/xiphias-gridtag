@@ -16,7 +16,7 @@ local function showSettings()
         f:row { f:static_text { title = "Scheidingsteken voor rijders" }, f:edit_field { value = LrView.bind { key = "personSeparator" } } },
     }
     LrDialogs.presentModalDialog {
-        title = "GridTag instellingen",
+        title = "XiPHiAS GridTag instellingen",
         contents = contents,
         actionVerb = "Opslaan",
         propertyTable = prefs,
@@ -25,5 +25,5 @@ end
 
 LrFunctionContext.postAsyncTaskWithContext("GridTag instellingen", function()
     local ok, message = LrTasks.pcall(showSettings)
-    if not ok then LrDialogs.message("GridTag fout", tostring(message), "ok") end
+    if not ok then LrDialogs.message("XiPHiAS GridTag fout", tostring(message), "ok") end
 end)

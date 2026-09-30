@@ -1,4 +1,4 @@
-namespace GridTag.Review;
+namespace XiPHiAS.GridTag.Review;
 
 public partial class App : System.Windows.Application
 {

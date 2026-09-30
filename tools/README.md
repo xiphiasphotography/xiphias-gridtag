@@ -1,6 +1,6 @@
 # Vision model export
 
-GridTag task 9b proposes **YOLOX** for car detection. YOLOX is Apache-2.0; do not use Ultralytics YOLO weights or code here because that family is AGPL-3.0. ONNX Runtime is MIT-licensed and the DirectML execution provider is used locally through `Microsoft.ML.OnnxRuntime.DirectML`.
+XiPHiAS GridTag task 9b proposes **YOLOX** for car detection. YOLOX is Apache-2.0; do not use Ultralytics YOLO weights or code here because that family is AGPL-3.0. ONNX Runtime is MIT-licensed and the DirectML execution provider is used locally through `Microsoft.ML.OnnxRuntime.DirectML`.
 
 No model weights are downloaded or committed by this repository.
 

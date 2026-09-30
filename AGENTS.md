@@ -1,17 +1,17 @@
-# AGENTS.md — GridTag
+# AGENTS.md — XiPHiAS GridTag
 
 Instructions for coding agents (Codex) working in this repository. Read this file fully before changing anything. Nested `AGENTS.md` files (e.g. `lightroom/AGENTS.md`) add rules for their folder and win on conflict.
 
 ## 1. What this project is
 
-**GridTag** recognises start numbers on motorsport cars in RAW photos, validates the identification against the event entry list and optional visual evidence (car make/model and logos), and adds the matching IPTC metadata (headline, description, keywords, drivers) to those photos in **Lightroom Classic (LrC)**. GridTag is run only after the owner has selected and edited the photos; it is not a culling, editing or export application.
+**XiPHiAS GridTag** recognises start numbers on motorsport cars in RAW photos, validates the identification against the event entry list and optional visual evidence (car make/model and logos), and adds the matching IPTC metadata (headline, description, keywords, drivers) to those photos in **Lightroom Classic (LrC)**. XiPHiAS GridTag is run only after the owner has selected and edited the photos; it is not a culling, editing or export application.
 
 Two cooperating parts:
 
 1. **`gridtag` CLI + libraries (.NET, C#)** — all application and recognition logic: RAW preview → car detection → number reading → optional visual evidence → validation against an entry list → generated metadata fields.
 2. **LrC plugin (Lua)** — deliberately thin glue: collects the Picks, calls the CLI, applies the results to the LrC catalog, and provides a manual-correction flow. Do not move recognition or business logic into Lua.
 
-The owner primarily develops in JavaScript and has some C# experience. Prefer straightforward, readable C# that is easy to follow from a JavaScript background; avoid clever framework abstractions. JavaScript/Node/Electron are **not** runtime dependencies of GridTag unless the owner explicitly asks for them. Communicate with the owner in Dutch if asked; keep code, identifiers and comments in English (user-facing plugin strings in Dutch).
+The owner primarily develops in JavaScript and has some C# experience. Prefer straightforward, readable C# that is easy to follow from a JavaScript background; avoid clever framework abstractions. JavaScript/Node/Electron are **not** runtime dependencies of XiPHiAS GridTag unless the owner explicitly asks for them. Communicate with the owner in Dutch if asked; keep code, identifiers and comments in English (user-facing plugin strings in Dutch).
 
 ## 2. Fixed workflow (do not redesign)
 
@@ -19,14 +19,14 @@ The owner primarily develops in JavaScript and has some C# experience. Prefer st
 Photo Mechanic: base IPTC (event/session constants)   ->  folder "yyyy-mm-dd - event\raw"
 FastStone Viewer: move selection                       ->  folder "yyyy-mm-dd - event"
 Lightroom Classic: owner edits photos, then sets final Pick flag
-GridTag: only those Picks are analysed and get car-specific metadata
-Lightroom Classic: review (incl. GridTag review collection), export
+XiPHiAS GridTag: only those Picks are analysed and get car-specific metadata
+Lightroom Classic: review (incl. XiPHiAS GridTag review collection), export
 ```
 
 Consequences:
-- Event/session constants (creator, credit, copyright, location, event name, `TransmissionReference`) are **owned by Photo Mechanic**. GridTag never writes them.
-- GridTag processes **Picks only** (`pickStatus == 1`) after the owner has finished selection/editing. It does not rate, cull, edit, render or export photos.
-- GridTag writes into the **LrC catalog via the plugin SDK**, not into XMP sidecars.
+- Event/session constants (creator, credit, copyright, location, event name, `TransmissionReference`) are **owned by Photo Mechanic**. XiPHiAS GridTag never writes them.
+- XiPHiAS GridTag processes **Picks only** (`pickStatus == 1`) after the owner has finished selection/editing. It does not rate, cull, edit, render or export photos.
+- XiPHiAS GridTag writes into the **LrC catalog via the plugin SDK**, not into XMP sidecars.
 - The Lightroom plugin is only an adapter/UI layer. The C# CLI owns domain logic, matching, field generation and all vision integration.
 
 ## 3. Non-negotiables
@@ -34,8 +34,8 @@ Consequences:
 1. **Precision over recall.** A wrong automatic tag is worse than no tag. When unsure → status `review`. Never lower thresholds to make numbers look better; change thresholds only with evaluation data (see §9).
 2. **Local only.** No cloud OCR, no uploads, no telemetry. Photos never leave the machine.
 3. **Never modify RAW files.** The .NET side never writes XMP sidecars or any image file. Only the Lua plugin writes metadata, and only into the LrC catalog.
-4. **Field ownership.** GridTag owns exactly: `headline`, `caption`, `altTextAccessibility`, `extDescrAccessibility`, `personShown`, and the keywords it created itself (tracked in plugin metadata `keywords`). It must not touch anything else (rating, label, develop settings, other keywords, PM fields).
-5. **Idempotent.** Re-running on the same photo must not duplicate keywords or leave stale GridTag keywords behind.
+4. **Field ownership.** XiPHiAS GridTag owns exactly: `headline`, `caption`, `altTextAccessibility`, `extDescrAccessibility`, `personShown`, and the keywords it created itself (tracked in plugin metadata `keywords`). It must not touch anything else (rating, label, develop settings, other keywords, PM fields).
+5. **Idempotent.** Re-running on the same photo must not duplicate keywords or leave stale XiPHiAS GridTag keywords behind.
 6. **Contracts are versioned.** Every JSON file has `schemaVersion`. Breaking changes bump it and update `docs/contracts.md`, the C# records and the Lua code in the same change.
 7. **Manual overrides win.** A `manual` status is never overwritten by automatic runs.
 8. **Never invent SDK behaviour.** LrC SDK facts in §10 are marked verified / unverified. Do not rely on unverified behaviour without adding a test note in `docs/open-questions.md`.
@@ -71,16 +71,16 @@ Exchange is via files in a temp folder. The CLI has no dependency on Lightroom; 
 Create this structure in Phase 0 (see §11). Do not add other top-level projects without asking.
 
 ```
-AGENTS.md  README.md  GridTag.slnx  Directory.Build.props  .editorconfig  .gitignore
+AGENTS.md  README.md  XiPHiAS.GridTag.slnx  Directory.Build.props  .editorconfig  .gitignore
 docs/          contracts.md  architecture.md  open-questions.md  reference/*.xmp (golden examples)
 samples/       entrylist.csv  session.example.json  manifest.example.json  results.example.json
 src/
-  GridTag.Core/      domain, entry list, matching, field building, pipeline, JSON contracts  (no I/O to images, no ONNX)
-  GridTag.Vision/    RAW preview + vision implementations behind interfaces: ICarDetector / IPlateReader first; later car-model and logo evidence classifiers; stubs first
-  GridTag.Cli/       gridtag.exe: run | check-entrylist | fields | eval | version
-tests/GridTag.Core.Tests/   xUnit
+  XiPHiAS.GridTag.Core/      domain, entry list, matching, field building, pipeline, JSON contracts  (no I/O to images, no ONNX)
+  XiPHiAS.GridTag.Vision/    RAW preview + vision implementations behind interfaces: ICarDetector / IPlateReader first; later car-model and logo evidence classifiers; stubs first
+  XiPHiAS.GridTag.Cli/       gridtag.exe: run | check-entrylist | fields | eval | version
+tests/XiPHiAS.GridTag.Core.Tests/   xUnit
 tools/                      Python training/export scripts (later; not part of the .NET build)
-lightroom/GridTag.lrdevplugin/   Info.lua, Runner.lua, Prefs.lua, Settings.lua, Metadata + Tagset, json.lua (rxi, MIT)
+lightroom/XiPHiAS.GridTag.lrdevplugin/   Info.lua, Runner.lua, Prefs.lua, Settings.lua, Metadata + Tagset, json.lua (rxi, MIT)
 ```
 
 Dependency direction: `Cli → Vision → Core` and `Cli → Core`. `Core` references nothing but the BCL.
@@ -205,20 +205,20 @@ Environment: Lua 5.1, plugin runs inside LrC, `import`/`require` of plugin-local
 - `catalog:createCollection(name, nil, true)`, `collection:addPhotos/removePhotos`.
 - Whether `LrSdkVersion` above the running LrC's SDK still loads (min version 6.0 is set).
 
-Plugin rules: keep write gates short (chunks of ~50 photos, default `chunkSize`); run the CLI **outside** any write gate; declare custom metadata (`status`, `number`, `manualNumber`, `confidence`, `reasons`, `session`, `keywords`, `toolVersion`) with `searchable = true` where useful; `status` is an enum (`auto, review, manual, noCar, error`). Toolkit identifier: `net.xiphias.gridtag` (owner may change it).
+Plugin rules: keep write gates short (chunks of ~50 photos, default `chunkSize`); run the CLI **outside** any write gate; declare custom metadata (`status`, `number`, `manualNumber`, `confidence`, `reasons`, `session`, `keywords`, `toolVersion`) with `searchable = true` where useful; `status` is an enum (`auto, review, manual, noCar, error`). Toolkit identifier: `net.xiphias.gridtag` (persistent identity; preserve across branding changes).
 
-Manual flow: user types a number in the custom field `manualNumber` for one or many photos (multi-select edit) → menu "GridTag: verwerk handmatige nummers" → same CLI (`manualNumber` set) → status `manual` or `review` with `unknown_number:<n>`.
+Manual flow: user types a number in the custom field `manualNumber` for one or many photos (multi-select edit) → menu "XiPHiAS GridTag: verwerk handmatige nummers" → same CLI (`manualNumber` set) → status `manual` or `review` with `unknown_number:<n>`.
 
 ## 11. Commands
 
 ```
-dotnet build GridTag.slnx
-dotnet test  GridTag.slnx
-dotnet run --project src/GridTag.Cli -- run --manifest samples/manifest.example.json --entrylist samples/entrylist.csv --session samples/session.example.json --out work/results.json
-dotnet run --project src/GridTag.Cli -- check-entrylist --entrylist samples/entrylist.csv
-dotnet run --project src/GridTag.Cli -- fields --entrylist samples/entrylist.csv --session samples/session.example.json --number 69
+dotnet build XiPHiAS.GridTag.slnx
+dotnet test  XiPHiAS.GridTag.slnx
+dotnet run --project src/XiPHiAS.GridTag.Cli -- run --manifest samples/manifest.example.json --entrylist samples/entrylist.csv --session samples/session.example.json --out work/results.json
+dotnet run --project src/XiPHiAS.GridTag.Cli -- check-entrylist --entrylist samples/entrylist.csv
+dotnet run --project src/XiPHiAS.GridTag.Cli -- fields --entrylist samples/entrylist.csv --session samples/session.example.json --number 69
 ```
-Lua syntax check (if Lua 5.1 is available): `luac5.1 -p lightroom/GridTag.lrdevplugin/*.lua`.
+Lua syntax check (if Lua 5.1 is available): `luac5.1 -p lightroom/XiPHiAS.GridTag.lrdevplugin/*.lua`.
 
 Target framework is `net10.0` (single place: `Directory.Build.props`). Do not pin NuGet versions from memory: use `dotnet add package <name>` and commit what resolves. Test stack: xUnit.
 
@@ -242,11 +242,11 @@ Build and tests green · no new warnings · docs/contracts updated if any contra
 
 ## 15. First tasks (Phase 0 → 1), in order
 
-1. **Scaffold** the layout of §5 with the projects, `Directory.Build.props`, `GridTag.slnx`, `.editorconfig`, `.gitignore` (`*.xmp -text` in `.gitattributes`). Copy the owner-provided `_entrylist.csv` to `samples/entrylist.csv` and the two reference XMP files to `docs/reference/`. Build green.
+1. **Scaffold** the layout of §5 with the projects, `Directory.Build.props`, `XiPHiAS.GridTag.slnx`, `.editorconfig`, `.gitignore` (`*.xmp -text` in `.gitattributes`). Copy the owner-provided `_entrylist.csv` to `samples/entrylist.csv` and the two reference XMP files to `docs/reference/`. Build green.
 2. **Core domain**: `EntryList` + `EntryListLoader` (BOM, `;`, quoted cells, driver_N columns), `NumberNormalizer`, `ConfusionMap`, `EntryListAnalysis` (confusables, substring hosts). Tests incl. 45 entries, unique numbers, Söderström present.
 3. **Fields**: `EventContext`, `FieldTemplates`, `TemplateRenderer`, `SessionResolver`, `FieldBuilder`. Golden tests for #3 and #69 pass.
 4. **Matching**: `NumberHypothesis`, `MatchOptions`, `IEvidence`, `NumberMatcher` per §8 with tests.
-5. **Pipeline + contracts**: `Manifest`, `ResultFile`, `PhotoResult`, `GridTagJson` (rules of §6), `TaggingPipeline` (manual path first, then automatic path against fakes), stub implementations in `GridTag.Vision` (`StubRawPreviewProvider` → `no_preview`, `NullCarDetector`, `NullPlateReader`).
+5. **Pipeline + contracts**: `Manifest`, `ResultFile`, `PhotoResult`, `GridTagJson` (rules of §6), `TaggingPipeline` (manual path first, then automatic path against fakes), stub implementations in `XiPHiAS.GridTag.Vision` (`StubRawPreviewProvider` → `no_preview`, `NullCarDetector`, `NullPlateReader`).
 6. **CLI**: `run`, `check-entrylist`, `fields`, `version`, exit codes of §6. Example files in `samples/`.
 7. **Lightroom plugin**: `Info.lua`, metadata + tagset, `Prefs`, `Settings`, `Runner` (analyze + manual), review collections, `json.lua`. Lua syntax check clean. Then owner tests inside LrC and reports the open questions.
 8. **Evaluation harness** (`gridtag eval`) — **before** any model work.

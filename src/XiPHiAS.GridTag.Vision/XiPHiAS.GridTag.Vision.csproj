@@ -3,7 +3,7 @@
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../GridTag.Core/GridTag.Core.csproj" />
+    <ProjectReference Include="../XiPHiAS.GridTag.Core/XiPHiAS.GridTag.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MetadataExtractor" Version="2.9.3" />

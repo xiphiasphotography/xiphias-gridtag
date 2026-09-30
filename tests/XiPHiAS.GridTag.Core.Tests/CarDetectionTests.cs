@@ -1,7 +1,7 @@
-using GridTag.Vision;
+using XiPHiAS.GridTag.Vision;
 using Xunit;
 
-namespace GridTag.Core.Tests;
+namespace XiPHiAS.GridTag.Core.Tests;
 
 public sealed class CarDetectionTests
 {

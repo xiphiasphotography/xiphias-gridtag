@@ -1,4 +1,4 @@
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>One neighbouring frame with a measured visual similarity to a source frame.</summary>
 /// <param name="Photo">Frame metadata including EXIF capture time.</param>

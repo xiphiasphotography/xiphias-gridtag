@@ -4,5 +4,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Company>XiPHiAS Photography</Company>
+    <Authors>M. W. Rosa</Authors>
+    <Copyright>Copyright © 2026 XiPHiAS Photography</Copyright>
+    <Product>XiPHiAS GridTag</Product>
   </PropertyGroup>
 </Project>

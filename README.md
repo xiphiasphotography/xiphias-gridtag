@@ -1,6 +1,14 @@
-# GridTag
+# XiPHiAS GridTag
 
-GridTag herkent startnummers op raceauto's in RAW-foto's, controleert de match tegen de entrylist en aanvullende visuele aanwijzingen zoals automerk/-model en logo's, en voegt daarna automatisch de juiste auto-specifieke IPTC-metadata toe in **Lightroom Classic**: headline, beschrijving, alt-tekst, keywords en rijdersnamen. GridTag komt pas in actie nadat de foto's handmatig zijn geselecteerd en bewerkt.
+De productnaam is XiPHiAS GridTag; C#-projecten en namespaces gebruiken `XiPHiAS.GridTag.*`.
+Het CLI-command blijft `gridtag` (`gridtag.exe`). De Lightroom-plugin staat in
+`lightroom/XiPHiAS.GridTag.lrdevplugin`; wijs Plug-inbeheer na de hernoeming naar die map.
+De toolkit-ID `net.xiphias.gridtag`, metadata-ID's en bestaande collectienamen
+`GridTag Review` en `GridTag GeenAuto` blijven behouden, evenals de loggernaam `GridTag`
+en tijdelijke padprefix `GridTag-`. Deze brandingwijziging verandert geen functionaliteit
+of JSON-contracten.
+
+XiPHiAS GridTag herkent startnummers op raceauto's in RAW-foto's, controleert de match tegen de entrylist en aanvullende visuele aanwijzingen zoals automerk/-model en logo's, en voegt daarna automatisch de juiste auto-specifieke IPTC-metadata toe in **Lightroom Classic**: headline, beschrijving, alt-tekst, keywords en rijdersnamen. XiPHiAS GridTag komt pas in actie nadat de foto's handmatig zijn geselecteerd en bewerkt.
 
 > Status: **0.0.1 (beta)**. De CLI, domeinlogica en Lightroom-adapter werken en zijn getest; de vision-modellen (autodetectie en nummer-OCR) moeten nog worden gekoppeld. Zonder model-configuratie meldt elke foto `error` met reden `no_preview`. Zie `docs/release-notes-0.0.1.md`.
 
@@ -61,19 +69,19 @@ Als sidecars een andere notatie gebruiken dan `#69`, pas dan de regex
 twee XMP-voorbeelden en afgeleide gevallen: één nummer, meerdere nummers,
 geen nummer, onbekend nummer en een sidecar zonder RAW.
 
-Verify with `dotnet restore GridTag.slnx`, `dotnet build GridTag.slnx`, and
-`dotnet test GridTag.slnx`. No Lightroom or image files are needed for these checks.
+Verify with `dotnet restore XiPHiAS.GridTag.slnx`, `dotnet build XiPHiAS.GridTag.slnx`, and
+`dotnet test XiPHiAS.GridTag.slnx`. No Lightroom or image files are needed for these checks.
 
 ## Workflow
 
 1. **Photo Mechanic**: basis-IPTC per evenement/sessie (map `yyyy-mm-dd - event\raw`).
 2. **FastStone Viewer**: selectie verplaatsen naar `yyyy-mm-dd - event`.
 3. **Lightroom Classic**: zelf bewerken; zet daarna de definitieve beelden op **Pick**.
-4. **GridTag** (menu in Lightroom): alleen die Picks worden geanalyseerd en krijgen auto-specifieke metadata.
+4. **XiPHiAS GridTag** (menu in Lightroom): alleen die Picks worden geanalyseerd en krijgen auto-specifieke metadata.
 5. **Review in Lightroom**: foto's die niet automatisch lukken staan in de collectie `GridTag Review` (of `GridTag GeenAuto`). Typ daar zelf het nummer in het veld *Startnummer (handmatig)* en start "verwerk handmatige nummers".
 6. **Export** vanuit Lightroom.
 
-GridTag schrijft rechtstreeks in de Lightroom-catalogus. Er is dus geen "metadata opslaan" of "metadata lezen" nodig tussen de stappen, en er worden geen XMP-sidecars door de tool aangepast. GridTag doet nadrukkelijk geen selectie, rating, beeldbewerking of export; dat blijft handwerk in de bestaande workflow.
+XiPHiAS GridTag schrijft rechtstreeks in de Lightroom-catalogus. Er is dus geen "metadata opslaan" of "metadata lezen" nodig tussen de stappen, en er worden geen XMP-sidecars door de tool aangepast. XiPHiAS GridTag doet nadrukkelijk geen selectie, rating, beeldbewerking of export; dat blijft handwerk in de bestaande workflow.
 
 ## Hoe het werkt
 
@@ -87,7 +95,7 @@ Lightroom-plugin (Lua)                     gridtag.exe (.NET)
 ```
 
 - **Validatie tegen de entrylist:** de tool kiest uit de nummers die echt bestaan, in plaats van vrije OCR te vertrouwen. Verwarbare nummers (bijv. 59/66/69/96/99) en deelnummers (5 in 55) gaan naar review.
-- **Nummer is primair, merk/model is controle:** een herkend automerk/-model kan een twijfelachtig nummer versterken of juist een conflict signaleren. Logoherkenning kan later als extra, zwakker bewijs worden gebruikt. Bij conflict gaat de foto naar review; GridTag verzint nooit zelf een deelnemer.
+- **Nummer is primair, merk/model is controle:** een herkend automerk/-model kan een twijfelachtig nummer versterken of juist een conflict signaleren. Logoherkenning kan later als extra, zwakker bewijs worden gebruikt. Bij conflict gaat de foto naar review; XiPHiAS GridTag verzint nooit zelf een deelnemer.
 - **Precisie boven recall:** liever een foto niet taggen dan verkeerd taggen.
 - **Alles lokaal:** geen cloud, geen uploads.
 
@@ -96,16 +104,16 @@ Zie `AGENTS.md` voor de volledige regels, contracten en het matching-algoritme.
 
 ## Technische keuze
 
-GridTag bestaat bewust uit twee kleine, gescheiden delen:
+XiPHiAS GridTag bestaat bewust uit twee kleine, gescheiden delen:
 
 - **C#/.NET (`gridtag.exe`)** bevat alle echte logica: RAW-preview, vision, entrylist, matching, confidence/evidence en veldgeneratie.
 - **Lightroom Classic plug-in (Lua)** blijft een dunne adapter: Picks ophalen, `gridtag.exe` starten, resultaten lezen en metadata in de Lightroom-catalogus zetten.
 
-De eigenaar programmeert voornamelijk in JavaScript en deels in C#. Daarom blijft de C#-code eenvoudig en expliciet opgebouwd. JavaScript/Node/Electron zijn geen runtime-onderdeel van GridTag; er komt geen aparte webinterface of service bij zolang Lightroom zelf voldoende UI biedt.
+De eigenaar programmeert voornamelijk in JavaScript en deels in C#. Daarom blijft de C#-code eenvoudig en expliciet opgebouwd. JavaScript/Node/Electron zijn geen runtime-onderdeel van XiPHiAS GridTag; er komt geen aparte webinterface of service bij zolang Lightroom zelf voldoende UI biedt.
 
-## Wat GridTag wel en niet schrijft
+## Wat XiPHiAS GridTag wel en niet schrijft
 
-| GridTag schrijft | Photo Mechanic / jij |
+| XiPHiAS GridTag schrijft | Photo Mechanic / jij |
 |---|---|
 | Headline, beschrijving, alt-tekst, uitgebreide alt-beschrijving | Creator, credit, copyright, contactinfo |
 | Keywords: team, auto, rijders, `#nummer`, sessie, klasse | Locatie, evenement, organisatie, algemene keywords |
@@ -114,15 +122,15 @@ De eigenaar programmeert voornamelijk in JavaScript en deels in C#. Daarom blijf
 ## Projectstructuur (doel)
 
 ```
-AGENTS.md  README.md  GridTag.slnx  Directory.Build.props
+AGENTS.md  README.md  XiPHiAS.GridTag.slnx  Directory.Build.props
 docs/        contracts, architectuur, open vragen, reference/*.xmp (goede voorbeelden)
 samples/     entrylist.csv, session.example.json, manifest/results voorbeelden
 src/
-  GridTag.Core     domein, entrylist, matching, veldgeneratie, pipeline
-  GridTag.Vision   RAW-preview, autodetectie, nummerlezer; later merk/model- en logo-evidence
-  GridTag.Cli      gridtag.exe
-tests/GridTag.Core.Tests   xUnit, incl. golden tests op de twee XMP-voorbeelden
-lightroom/GridTag.lrdevplugin   de Lightroom-plugin (Lua)
+  XiPHiAS.GridTag.Core     domein, entrylist, matching, veldgeneratie, pipeline
+  XiPHiAS.GridTag.Vision   RAW-preview, autodetectie, nummerlezer; later merk/model- en logo-evidence
+  XiPHiAS.GridTag.Cli      gridtag.exe
+tests/XiPHiAS.GridTag.Core.Tests   xUnit, incl. golden tests op de twee XMP-voorbeelden
+lightroom/XiPHiAS.GridTag.lrdevplugin   de Lightroom-plugin (Lua)
 tools/       Python-scripts voor training (later)
 ```
 
@@ -137,21 +145,21 @@ tools/       Python-scripts voor training (later)
 
 ### 1. Bouwen en testen
 ```text
-dotnet restore GridTag.slnx
-dotnet build   GridTag.slnx
-dotnet test    GridTag.slnx
+dotnet restore XiPHiAS.GridTag.slnx
+dotnet build   XiPHiAS.GridTag.slnx
+dotnet test    XiPHiAS.GridTag.slnx
 ```
 
 Verwacht: build met 0 warnings, 62 tests groen. Er zijn geen foto's of Lightroom nodig voor deze stap.
 
 ### 2. CLI gebruiken
 ```text
-dotnet run --project src/GridTag.Cli -- version
-dotnet run --project src/GridTag.Cli -- check-entrylist --entrylist samples/entrylist.csv
-dotnet run --project src/GridTag.Cli -- fields --entrylist samples/entrylist.csv --session samples/session.example.json --number 69
-dotnet run --project src/GridTag.Cli -- run --manifest samples/manifest.example.json --entrylist samples/entrylist.csv --session samples/session.example.json --out work/results.json
-dotnet run --project src/GridTag.Cli -- preview --file "D:\foto.ARW" --out work/preview.jpg
-dotnet run --project src/GridTag.Cli -- eval --labels work/labels.csv --entrylist samples/entrylist.csv --session samples/session.example.json
+dotnet run --project src/XiPHiAS.GridTag.Cli -- version
+dotnet run --project src/XiPHiAS.GridTag.Cli -- check-entrylist --entrylist samples/entrylist.csv
+dotnet run --project src/XiPHiAS.GridTag.Cli -- fields --entrylist samples/entrylist.csv --session samples/session.example.json --number 69
+dotnet run --project src/XiPHiAS.GridTag.Cli -- run --manifest samples/manifest.example.json --entrylist samples/entrylist.csv --session samples/session.example.json --out work/results.json
+dotnet run --project src/XiPHiAS.GridTag.Cli -- preview --file "D:\foto.ARW" --out work/preview.jpg
+dotnet run --project src/XiPHiAS.GridTag.Cli -- eval --labels work/labels.csv --entrylist samples/entrylist.csv --session samples/session.example.json
 ```
 
 `fields` is de snelste manier om de gegenereerde metadata te controleren zonder foto's. `preview` schrijft de uit een RAW geëxtraheerde JPEG weg, zodat je kunt zien wat de vision-stappen krijgen.
@@ -163,19 +171,19 @@ Exit codes: `0` ok · `1` onverwachte fout · `2` usage-fout · `3` ongeldig of 
 Zonder `--vision-config` en `--plate-config` gebruikt de CLI null-implementaties en levert `run` per foto `error`/`no_preview` op. Met modellen:
 
 ```text
-dotnet run --project src/GridTag.Cli -- run --manifest work/manifest.json --entrylist samples/entrylist.csv --session work/session.json --out work/results.json --vision-config work/detector.json --plate-config work/plate.json
+dotnet run --project src/XiPHiAS.GridTag.Cli -- run --manifest work/manifest.json --entrylist samples/entrylist.csv --session work/session.json --out work/results.json --vision-config work/detector.json --plate-config work/plate.json
 ```
 
 Modelgewichten blijven buiten de repository. Extra opties: `--timing-csv` en `--clock-offset` voor timing-controle.
 
 ### 4. Plugin in Lightroom Classic
-1. **Bestand → Plug-inbeheer → Toevoegen** → kies `lightroom/GridTag.lrdevplugin`.
-2. **Bibliotheek → Plug-in-extra's → GridTag: instellingen…**: vul het pad naar de CLI (`gridtag.exe` of `dotnet <pad>\gridtag.dll`), `entrylist.csv` en `session.json`, plus de chunkgrootte.
+1. **Bestand → Plug-inbeheer → Toevoegen** → kies `lightroom/XiPHiAS.GridTag.lrdevplugin`.
+2. **Bibliotheek → Plug-in-extra's → XiPHiAS GridTag: instellingen…**: vul het pad naar de CLI (`gridtag.exe` of `dotnet <pad>\gridtag.dll`), `entrylist.csv` en `session.json`, plus de chunkgrootte.
 3. Bewerken en selecteren zoals altijd, zet de definitieve beelden op **Pick**.
-4. Selecteer de foto's en gebruik **GridTag: tag Picks**.
-5. Foto's die niet automatisch lukken staan in `GridTag Review` (of `GridTag GeenAuto`). Typ daar het nummer in *Startnummer (handmatig)* en gebruik **GridTag: verwerk handmatige nummers**.
+4. Selecteer de foto's en gebruik **XiPHiAS GridTag: tag Picks**.
+5. Foto's die niet automatisch lukken staan in `GridTag Review` (of `GridTag GeenAuto`). Typ daar het nummer in *Startnummer (handmatig)* en gebruik **XiPHiAS GridTag: verwerk handmatige nummers**.
 
-GridTag schrijft alleen in de Lightroom-catalogus; er worden geen XMP-sidecars of RAW-bestanden aangepast.
+XiPHiAS GridTag schrijft alleen in de Lightroom-catalogus; er worden geen XMP-sidecars of RAW-bestanden aangepast.
 
 ### 5. Lua-tests (optioneel)
 
@@ -208,9 +216,9 @@ Voer taak 4 uit (NumberMatcher) met tests voor: sterke enkele hypothese, verwarb
 
 ## Lightroom-plugin installeren (na taak 7)
 
-1. Lightroom Classic → **Bestand → Plug-in Manager → Toevoegen** → kies `lightroom/GridTag.lrdevplugin`.
-2. Menu **Bibliotheek → Plug-in-extra's → GridTag: instellingen…**: pad naar `gridtag.exe`, `entrylist.csv` en `session.json`.
-3. Selecteer de foto's van de map, gebruik **GridTag: tag Picks**.
+1. Lightroom Classic → **Bestand → Plug-in Manager → Toevoegen** → kies `lightroom/XiPHiAS.GridTag.lrdevplugin`.
+2. Menu **Bibliotheek → Plug-in-extra's → XiPHiAS GridTag: instellingen…**: pad naar `gridtag.exe`, `entrylist.csv` en `session.json`.
+3. Selecteer de foto's van de map, gebruik **XiPHiAS GridTag: tag Picks**.
 
 ## Belangrijke open punten (te testen in Lightroom)
 

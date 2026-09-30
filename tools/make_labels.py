@@ -37,7 +37,7 @@ NUMBER_KEYWORD = re.compile(r"^#\s*([0-9A-Za-z]{1,4})$")
 
 
 def normalize(n: str) -> str:
-    """Same rules as NumberNormalizer in GridTag.Core."""
+    """Same rules as NumberNormalizer in XiPHiAS.GridTag.Core."""
     s = n.strip().lstrip("#").strip().upper()
     if len(s) > 1 and s.isdigit():
         s = s.lstrip("0") or "0"

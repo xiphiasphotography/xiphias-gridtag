@@ -1,7 +1,7 @@
-using GridTag.Core;
+using XiPHiAS.GridTag.Core;
 using Xunit;
 
-namespace GridTag.Cli.Tests;
+namespace XiPHiAS.GridTag.Cli.Tests;
 
 public sealed class EvaluationTests
 {

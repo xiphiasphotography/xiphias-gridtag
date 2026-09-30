@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 
-namespace GridTag.Core;
+namespace XiPHiAS.GridTag.Core;
 
 /// <summary>A driver and optional nationality abbreviation.</summary>
 /// <param name="Name">The driver's name, preserving Unicode.</param>
