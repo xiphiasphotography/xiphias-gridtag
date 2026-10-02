@@ -31,3 +31,7 @@ work/
 # OS files
 Thumbs.db
 .DS_Store
+
+# Training and deprecated models
+# .training/
+Models/DEPRECATED/

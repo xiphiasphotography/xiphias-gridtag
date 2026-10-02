@@ -52,7 +52,7 @@ internal static class SemicolonCsvReader
                 throw new InvalidDataException("Unexpected text after a closing CSV quote.");
             if (character == '"')
             {
-                if (started)
+                if (cell.Length > 0)
                     throw new InvalidDataException("A CSV quote must begin a cell.");
                 quoted = true;
             }

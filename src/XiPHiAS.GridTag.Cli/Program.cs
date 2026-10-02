@@ -62,7 +62,17 @@ public static class CliApp
 		var manifest = GridTagJson.ReadManifest(Required(options, "manifest"));
 		var entryList = new EntryListLoader().Load(Required(options, "entrylist"));
 		var context = LoadEventContext(Required(options, "session"));
-		var pipeline = new TaggingPipeline(entryList, context, new EmbeddedJpegRawPreviewProvider(), CreateCarDetector(options), CreatePlateReader(options), evidenceProvider: CreateEvidenceProvider(options));
+		using var modelClassifier = CreateModelClassifier(options);
+		using var nameReader = CreateNameReader(options);
+		using var paddleReader = CreatePaddleReader(options);
+		var detector = CreateCarDetector(options);
+		using var detectorLifetime = detector as IDisposable;
+		var evidenceFactory = new VisionEvidenceFactory(modelClassifier,
+			options.ContainsKey("driver-name-detector") && paddleReader is not null ? new PaddleDriverNameReader(paddleReader) : nameReader);
+		var pipeline = new TaggingPipeline(entryList, context, new EmbeddedJpegRawPreviewProvider(), detector,
+			paddleReader is not null && options.ContainsKey("number-ocr") ? new PaddleNumberReader(paddleReader) : CreatePlateReader(options),
+			evidenceProvider: CreateEvidenceProvider(options), visualEvidenceProvider: evidenceFactory.Create,
+			burstProcessor: CreateBurstProcessor(options, entryList));
 		var result = pipeline.Process(manifest);
 		GridTagJson.WriteResultFile(Required(options, "out"), result);
 		output.WriteLine($"Processed {result.Photos.Count} photo(s).");
@@ -106,20 +116,44 @@ public static class CliApp
 		var labels = EvaluationInput.ReadLabels(Required(options, "labels"));
 		var entryList = new EntryListLoader().Load(Required(options, "entrylist"));
 		var context = LoadEventContext(Required(options, "session"));
-		var pipeline = new TaggingPipeline(entryList, context, new EmbeddedJpegRawPreviewProvider(), CreateCarDetector(options), CreatePlateReader(options), evidenceProvider: CreateEvidenceProvider(options));
-		var labelIndex = 0;
-		var report = new EvaluationRunner().Evaluate(labels, label => pipeline.ProcessPhoto(new ManifestPhoto(
-			++labelIndex,
-			$"eval-{labelIndex}",
+		using var modelClassifier = CreateModelClassifier(options);
+		using var nameReader = CreateNameReader(options);
+		using var paddleReader = CreatePaddleReader(options);
+		var detector = CreateCarDetector(options);
+		using var detectorLifetime = detector as IDisposable;
+		var evidenceFactory = new VisionEvidenceFactory(modelClassifier,
+			options.ContainsKey("driver-name-detector") && paddleReader is not null ? new PaddleDriverNameReader(paddleReader) : nameReader);
+		var pipeline = new TaggingPipeline(entryList, context, new EmbeddedJpegRawPreviewProvider(), detector,
+			paddleReader is not null && options.ContainsKey("number-ocr") ? new PaddleNumberReader(paddleReader) : CreatePlateReader(options),
+			evidenceProvider: CreateEvidenceProvider(options), visualEvidenceProvider: evidenceFactory.Create,
+			burstProcessor: CreateBurstProcessor(options, entryList));
+		IReadOnlyList<PhotoResult> results = [];
+		var captureTimeRequired = options.ContainsKey("timing-csv") ||
+			options.ContainsKey("burst-max-gap") || options.ContainsKey("burst-similarity");
+		var report = new EvaluationRunner().EvaluateBatch(labels, batch =>
+		{
+			var photos = batch.Select((label, index) => new ManifestPhoto(
+			index + 1,
+			$"eval-{index + 1}",
 			label.Path,
-			new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))));
+			captureTimeRequired ? ExifCaptureTimeReader.Read(label.Path) ?? default :
+				new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))).ToArray();
+			results = pipeline.Process(new Manifest(1, photos)).Photos;
+			return results;
+		});
+		if (options.TryGetValue("out", out var resultsPath))
+			GridTagJson.WriteResultFile(resultsPath, new ResultFile(1, ToolVersion, DateTimeOffset.UtcNow, results));
 
 		output.WriteLine($"photos: {report.TotalPhotos}");
+		output.WriteLine($"auto photos: {report.AutoPhotos} (correct: {report.CorrectAutoPhotos}, wrong: {report.WrongAutoPhotos})");
+		output.WriteLine($"auto rate: {report.AutoPhotos / (double)Math.Max(1, report.TotalPhotos):P2}");
 		output.WriteLine($"auto precision: {report.AutoPrecision:P2}");
 		output.WriteLine($"recall: {report.Recall:P2}");
 		output.WriteLine($"review rate: {report.ReviewRate:P2}");
 		output.WriteLine($"seconds/photo: {report.SecondsPerPhoto:F4}");
 		output.WriteLine($"go/no-go: {(report.MeetsGoNoGo ? "GO" : "NO-GO")}");
+		output.WriteLine($"evidence calls: {evidenceFactory.InvocationCount}; model observations: {evidenceFactory.ModelObservationCount}; name text lines: {evidenceFactory.NameObservationCount}");
+		output.WriteLine($"burst review photos: {results.Count(result => result.Reasons.Contains("burst_propagation_review"))}");
 		output.WriteLine("reasons:");
 		foreach (var reason in report.ReasonCounts.OrderBy(pair => pair.Key))
 			output.WriteLine($"  {reason.Key}: {reason.Value}");
@@ -221,16 +255,72 @@ public static class CliApp
 		return new OnnxPlateReader(new OnnxDigitRecognizer(config), config);
 	}
 
+	private static OnnxCarModelClassifier? CreateModelClassifier(IReadOnlyDictionary<string, string> options)
+	{
+		if (!options.ContainsKey("car-model") && !options.ContainsKey("car-model-labels"))
+			return null;
+		return new OnnxCarModelClassifier(Required(options, "car-model"), Required(options, "car-model-labels"),
+			options.GetValueOrDefault("car-model-format", "generic"));
+	}
+
+	private static OnnxDriverNameReader? CreateNameReader(IReadOnlyDictionary<string, string> options)
+	{
+		if (options.ContainsKey("driver-name-detector"))
+			return null;
+		if (!options.ContainsKey("driver-name-model") && !options.ContainsKey("driver-name-alphabet"))
+			return null;
+		return new OnnxDriverNameReader(Required(options, "driver-name-model"), Required(options, "driver-name-alphabet"));
+	}
+
+	private static PaddleOcrTextReader? CreatePaddleReader(IReadOnlyDictionary<string, string> options)
+	{
+		if (!options.ContainsKey("number-ocr") && !options.ContainsKey("driver-name-detector"))
+			return null;
+		if (options.ContainsKey("number-ocr") && options.ContainsKey("plate-config"))
+			throw new InvalidDataException("Choose either --number-ocr or --plate-config.");
+		var useNumber = options.ContainsKey("number-ocr");
+		var detector = Required(options, useNumber ? "number-ocr" : "driver-name-detector");
+		var recognizer = Required(options, useNumber ? "number-ocr-model" : "driver-name-model");
+		var dictionary = Required(options, useNumber ? "number-ocr-dictionary" : "driver-name-alphabet");
+		if (useNumber && options.ContainsKey("driver-name-detector") &&
+			(Path.GetFullPath(detector) != Path.GetFullPath(Required(options, "driver-name-detector")) ||
+			 Path.GetFullPath(recognizer) != Path.GetFullPath(Required(options, "driver-name-model")) ||
+			 Path.GetFullPath(dictionary) != Path.GetFullPath(Required(options, "driver-name-alphabet"))))
+			throw new InvalidDataException("Shared Paddle number/name OCR must use the same model and dictionary paths.");
+		return new PaddleOcrTextReader(detector, recognizer, dictionary);
+	}
+
 	private static Func<ManifestPhoto, IEvidence?>? CreateEvidenceProvider(IReadOnlyDictionary<string, string> options)
 	{
 		if (!options.TryGetValue("timing-csv", out var timingPath))
+		{
+			if (options.ContainsKey("clock-offset"))
+				throw new InvalidDataException("--clock-offset requires --timing-csv.");
 			return null;
+		}
 
 		var passingTimes = TimingCrossCheckEvidence.LoadCsv(timingPath);
-		var offset = options.TryGetValue("clock-offset", out var offsetText)
-			? TimeSpan.Parse(offsetText, System.Globalization.CultureInfo.InvariantCulture)
-			: TimeSpan.Zero;
+		var offset = TimeSpan.Zero;
+		if (options.TryGetValue("clock-offset", out var offsetText) &&
+			!TimeSpan.TryParseExact(offsetText, "c", System.Globalization.CultureInfo.InvariantCulture, out offset))
+			throw new InvalidDataException("Invalid --clock-offset; use [-][days.]hh:mm:ss[.fraction].");
 		return photo => new TimingCrossCheckEvidence(photo.CaptureTime.DateTime, passingTimes, offset);
+	}
+
+	private static BurstReviewProcessor? CreateBurstProcessor(IReadOnlyDictionary<string, string> options, EntryList entryList)
+	{
+		if (!options.ContainsKey("burst-max-gap") && !options.ContainsKey("burst-similarity"))
+			return null;
+		static double ReadValue(IReadOnlyDictionary<string, string> values, string key, double fallback)
+		{
+			if (!values.TryGetValue(key, out var text))
+				return fallback;
+			if (!double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value))
+				throw new InvalidDataException($"Invalid --{key} value.");
+			return value;
+		}
+		var limits = new BurstOptions(ReadValue(options, "burst-max-gap", 2), ReadValue(options, "burst-similarity", 0.95));
+		return new BurstReviewProcessor(entryList, new PreviewFrameSimilarity(new EmbeddedJpegRawPreviewProvider()), limits);
 	}
 
 	private static Dictionary<string, string>? ParseOptions(string[] args, TextWriter error)

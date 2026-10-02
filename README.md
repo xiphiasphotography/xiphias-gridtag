@@ -1,5 +1,16 @@
 # XiPHiAS GridTag
 
+Visuele evidence voor automodel en coureursnaam kan per autodetectie worden aangesloten
+via `VisionEvidenceFactory.Create` en `TaggingPipeline.visualEvidenceProvider`. De readers
+worden uitsluitend bij een onzekere, in de entrylist aanwezige nummerkandidaat aangeroepen.
+Concrete lokale ONNX-implementaties zijn beschikbaar; getrainde modelgewichten ontbreken nog. Zie
+[evidence en metingen](docs/evidence-burst-timing.md).
+
+`run` en `eval` ondersteunen `--car-model model.onnx --car-model-labels labels.txt`
+en `--driver-name-model reader.onnx --driver-name-alphabet alphabet.txt`.
+JPEG-input wordt op oorspronkelijke resolutie gelezen, zodat kleine namen en nummers
+niet door thumbnailselectie of verkleining verloren gaan.
+
 De productnaam is XiPHiAS GridTag; C#-projecten en namespaces gebruiken `XiPHiAS.GridTag.*`.
 Het CLI-command blijft `gridtag` (`gridtag.exe`). De Lightroom-plugin staat in
 `lightroom/XiPHiAS.GridTag.lrdevplugin`; wijs Plug-inbeheer na de hernoeming naar die map.
@@ -184,6 +195,49 @@ dotnet run --project src/XiPHiAS.GridTag.Cli -- run --manifest work/manifest.jso
 
 Modelgewichten blijven buiten de repository. Extra opties: `--timing-csv` en `--clock-offset` voor timing-controle.
 
+Voor het lokale `Models/car-detection/yolox_s.onnx` gebruik je
+`--vision-config samples/detector.yolox.json`. Deze configuratie kiest expliciet
+`modelFormat: "yolox"`: BGR CHW met waarden 0–255, lineair verkleinen en padding
+met 114 rechts/onder. De ruwe uitvoer `[1,8400,85]` krijgt eerst de YOLOX
+grid/stride-decodering (strides 8, 16, 32). Daarna volgt GridTags bestaande
+autoklassefilter en NMS. De standaard `generic`-modus blijft RGB 0–1 met
+gecentreerde padding en verwacht al gedecodeerde boxcoördinaten.
+
+De YOLOX-modus ondersteunt deze ruwe COCO P5-export; exports met ingebouwde
+boxdecodering of een andere layout vereisen een andere adapter. De officiële
+[YOLOX preprocessing](https://github.com/Megvii-BaseDetection/YOLOX/blob/main/yolox/data/data_augment.py)
+en [ONNX demo](https://github.com/Megvii-BaseDetection/YOLOX/blob/main/demo/ONNXRuntime/onnx_inference.py)
+zijn de referentie. GridTag gebruikt eigen bilineaire interpolatie; bit-identieke
+OpenCV-resize-uitvoer is nog niet vastgesteld. GridTag past NMS alleen op de
+autoklasse toe, terwijl de demo standaard klasse-onafhankelijke NMS gebruikt.
+Een werkend detectiemodel vervangt geen startnummer-OCR: voor automatische
+nummermatches is ook een passende nummerlezer nodig (`--plate-config` of
+de hieronder beschreven PaddleOCR-adapter).
+
+De lokale PaddleOCR-modellen kunnen nu ook startnummers lezen via
+`--number-ocr`/`--number-ocr-model`/`--number-ocr-dictionary`. Automerk-evidence
+(`--car-model-format stanford-imagenet`) en coureursnaam-evidence
+(`--driver-name-detector`) worden alleen bij onzekere bekende nummerkandidaten
+toegepast. De ResNet-normalisatie is voorlopig een expliciete aanname; de
+classifier levert in deze modus merk-evidence uit straatwagenklassen.
+Zie [taak 10a: modellen, opdrachten en echte voor/nameting](docs/task10a-evaluation.md).
+
+De meting op `.training/images2` met de bijgewerkte entrylist staat in
+[taken 10a/10b: images2-evaluatie](docs/task10-images2-evaluation.md).
+
+Optionele timingcontrole bij `run` en `eval`: `--timing-csv passing-times.csv
+--clock-offset 00:00:05`. De CSV heeft `number;time` met volledige datum/tijd;
+de offset wordt bij de cameraklok opgeteld. Alleen onzekere bekende nummers
+worden gecontroleerd; ontbrekende gegevens blijven neutraal. Zie
+[taak 10c: timingcontrole](docs/task10c-timing-cross-check.md).
+
+Optionele burstvoorstellen zijn beschikbaar bij `run` en `eval` met
+`--burst-max-gap 2 --burst-similarity 0.95`. Een nabij, sterk gelijkend frame kan
+een nummer als **review-kandidaat** krijgen, nooit als auto-tag of IPTC-fields.
+Voorstellen worden niet verder doorgegeven. `007` blijft verschillend van `7`.
+Ontbrekende EXIF-tijden leveren bij `eval` geen burstvoorstellen op. Zie
+[taak 10b: burstpropagatie en verificatie](docs/task10b-burst-propagation.md).
+
 ### 4. Plugin in Lightroom Classic
 1. **Bestand → Plug-inbeheer → Toevoegen** → kies `lightroom/XiPHiAS.GridTag.lrdevplugin`.
 2. **Bibliotheek → Plug-in-extra's → XiPHiAS GridTag: instellingen…**: vul het pad naar de CLI (`gridtag.exe` of `dotnet <pad>\gridtag.dll`), `entrylist.csv` en `session.json`, plus de chunkgrootte.
@@ -202,6 +256,10 @@ lua run_lua_tests.lua
 Draait `CatalogWriter` tegen gestubde Lightroom-API's: status/manual-bescherming, keyword-opruiming, chunking en het overleven van een falende `setRawMetadata`. Vereist alleen een Lua-interpreter; Lightroom is niet nodig.
 
 ## Aan de slag met Codex
+
+Startnummers zijn tekst en behouden voorloopnullen: `007` en `7` zijn
+verschillende deelnemers. Vermeld het exacte startnummer in de entrylist,
+handmatige invoer en evaluatielabels; ontbrekende nullen worden niet ingevuld.
 
 1. Maak een lege map, `git init`, en zet er `AGENTS.md` en deze `README.md` in.
 2. Zet je bronbestanden klaar:

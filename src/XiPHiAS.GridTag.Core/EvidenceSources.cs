@@ -25,7 +25,7 @@ public sealed class CarModelEvidence : IEvidence
     public double GetWeight(string candidateNumber, EntryList entryList)
     {
         ArgumentNullException.ThrowIfNull(entryList);
-        if (string.IsNullOrWhiteSpace(observation.Model))
+        if (string.IsNullOrWhiteSpace(observation.Model) || !double.IsFinite(observation.Confidence))
             return 1.0;
         if (!entryList.TryGetEntry(candidateNumber, out var entry))
             return 1.0;
@@ -64,12 +64,32 @@ public sealed class DriverNameEvidence : IEvidence
         if (!entryList.TryGetEntry(candidateNumber, out var entry) || observations.Count == 0)
             return 1.0;
 
-        var best = observations.Max(observation =>
-            entry.Drivers.Any(driver => driver.Name.Contains(observation.Name, StringComparison.OrdinalIgnoreCase) ||
-                                        observation.Name.Contains(driver.Name, StringComparison.OrdinalIgnoreCase))
+        var best = observations.Where(observation => !string.IsNullOrWhiteSpace(observation.Name) && double.IsFinite(observation.Confidence)).Select(observation =>
+            entry.Drivers.Any(driver => MatchesName(observation.Name, driver.Name, entryList))
                 ? Math.Clamp(observation.Confidence, 0, 1)
-                : 0.0);
+                : 0.0).DefaultIfEmpty(0.0).Max();
         return best > 0 ? 1.0 + best * 0.5 : 1.0;
+    }
+
+    private static bool MatchesName(string observed, string driverName, EntryList entryList)
+    {
+        static string[] Words(string text) =>
+            new string(text.Select(character => char.IsLetter(character) ? char.ToUpperInvariant(character) : ' ').ToArray())
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var read = Words(observed);
+        var driver = Words(driverName);
+        if (driver.Length == 0 || read.Length == 0)
+            return false;
+        if (read.SequenceEqual(driver))
+            return true;
+        // Short fragments and sponsor text cannot support a driver. A surname must be unique in the event.
+        var surname = driver[^1];
+        if (!(read.Length == 1 && read[0] == surname) &&
+            !(read.Length == 2 && read[0].Length == 1 && read[0][0] == driver[0][0] && read[1] == surname))
+            return false;
+        return entryList.Entries.SelectMany(entry => entry.Drivers)
+            .Where(candidate => Words(candidate.Name).LastOrDefault() == surname)
+            .Select(candidate => string.Join(' ', Words(candidate.Name))).Distinct().Count() == 1;
     }
 }
 
@@ -87,6 +107,10 @@ public sealed class CompositeEvidence : IEvidence
 
     /// <inheritdoc />
     public string Name => string.Join("+", sources.Select(source => source.Name));
+
+    /// <summary>Individual sources, flattened so a strong conflict cannot be hidden by supporting evidence.</summary>
+    public IReadOnlyList<IEvidence> Sources => sources.SelectMany(source =>
+        source is CompositeEvidence composite ? composite.Sources : new[] { source }).ToArray();
 
     /// <inheritdoc />
     public double GetWeight(string candidateNumber, EntryList entryList) =>
@@ -117,6 +141,8 @@ public sealed class TimingCrossCheckEvidence : IEvidence
         this.passingTimes = passingTimes?.ToArray() ?? throw new ArgumentNullException(nameof(passingTimes));
         this.clockOffset = clockOffset;
         this.tolerance = tolerance ?? TimeSpan.FromSeconds(2);
+        if (this.tolerance <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(tolerance), "Timing tolerance must be positive.");
     }
 
     /// <inheritdoc />
@@ -126,9 +152,16 @@ public sealed class TimingCrossCheckEvidence : IEvidence
     public double GetWeight(string candidateNumber, EntryList entryList)
     {
         ArgumentNullException.ThrowIfNull(entryList);
-        var expected = captureTime + clockOffset;
+        if (captureTime == default || !entryList.TryGetEntry(candidateNumber, out _))
+            return 1.0;
+        // Compare wall clocks, consistent with session and burst handling. An invalid
+        // corrected clock is unavailable evidence, rather than a participant conflict.
+        var correctedTicks = (decimal)captureTime.Ticks + clockOffset.Ticks;
+        if (correctedTicks < DateTime.MinValue.Ticks || correctedTicks > DateTime.MaxValue.Ticks)
+            return 1.0;
+        var expected = new DateTime((long)correctedTicks, DateTimeKind.Unspecified);
         var nearest = passingTimes
-            .Where(row => string.Equals(NumberNormalizer.Normalize(row.Number), NumberNormalizer.Normalize(candidateNumber), StringComparison.Ordinal))
+            .Where(row => row.Time != default && string.Equals(NumberNormalizer.Normalize(row.Number), NumberNormalizer.Normalize(candidateNumber), StringComparison.Ordinal))
             .Select(row => Math.Abs((row.Time - expected).TotalSeconds))
             .DefaultIfEmpty(double.MaxValue)
             .Min();
@@ -143,14 +176,25 @@ public sealed class TimingCrossCheckEvidence : IEvidence
         if (!File.Exists(path))
             throw new FileNotFoundException($"Timing CSV '{path}' was not found.", path);
         var rows = new List<PassingTime>();
-        foreach (var line in File.ReadLines(path).Skip(1))
+        using var reader = new StreamReader(path);
+        using var csv = SemicolonCsvReader.Read(reader).GetEnumerator();
+        if (!csv.MoveNext() || !csv.Current.Select(cell => cell.Trim().ToLowerInvariant())
+            .SequenceEqual(new[] { "number", "time" }))
+            throw new InvalidDataException("Timing CSV header must be number;time.");
+        var rowIndex = 1;
+        while (csv.MoveNext())
         {
-            if (string.IsNullOrWhiteSpace(line))
-                continue;
-            var cells = line.Split(';', 2);
-            if (cells.Length != 2 || !DateTime.TryParse(cells[1], CultureInfo.InvariantCulture, DateTimeStyles.None, out var time))
-                throw new InvalidDataException("Timing CSV rows must be number;time.");
-            rows.Add(new PassingTime(cells[0].Trim(), time));
+            rowIndex++;
+            var cells = csv.Current;
+            // Explicit formats prevent culture-dependent dates and time-only rows.
+            string[] formats = ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF",
+                "yyyy-MM-dd'T'HH:mm:ssK", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
+                "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm:ss.FFFFFFF"];
+            if (cells.Length != 2 || NumberNormalizer.Normalize(cells[0]).Length == 0 ||
+                !DateTimeOffset.TryParseExact(cells[1].Trim(), formats, CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var timestamp) || timestamp.DateTime == default)
+                throw new InvalidDataException($"Timing CSV row {rowIndex} must contain a number and a full ISO date/time.");
+            rows.Add(new PassingTime(NumberNormalizer.Normalize(cells[0]), timestamp.DateTime));
         }
         return rows;
     }

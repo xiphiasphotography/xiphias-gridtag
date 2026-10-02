@@ -14,6 +14,8 @@ public enum RawPreviewSource
     EmbeddedJpeg,
     /// <summary>Half-size decode and JPEG re-encode through the Windows decoder.</summary>
     HalfSizeDecode,
+    /// <summary>Original JPEG input without thumbnail selection or downscaling.</summary>
+    JpegInput,
 }
 
 /// <summary>Decoded preview payload passed to later vision stages.</summary>
@@ -33,6 +35,15 @@ public sealed class EmbeddedJpegRawPreviewProvider : IRawPreviewProvider
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return null;
+
+            if (Path.GetExtension(path).Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                Path.GetExtension(path).Equals(".jpeg", StringComparison.OrdinalIgnoreCase))
+            {
+                var bytes = File.ReadAllBytes(path);
+                using var stream = new MemoryStream(bytes, writable: false);
+                using var image = Image.FromStream(stream, false, true);
+                return new RawPreview(bytes, image.Width, image.Height, RawPreviewSource.JpegInput);
+            }
 
             var embedded = TryReadEmbeddedJpeg(path);
             if (embedded is not null)

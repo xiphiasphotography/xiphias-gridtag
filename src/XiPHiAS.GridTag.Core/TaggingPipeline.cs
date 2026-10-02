@@ -11,6 +11,8 @@ public sealed class TaggingPipeline
     private readonly NumberMatcher matcher;
     private readonly FieldBuilder fieldBuilder;
     private readonly Func<ManifestPhoto, IEvidence?>? evidenceProvider;
+    private readonly Func<IPreview, DetectedCar, IEvidence?>? visualEvidenceProvider;
+    private readonly BurstReviewProcessor? burstProcessor;
 
     /// <summary>Creates a pipeline from the event context and the vision interfaces.</summary>
     public TaggingPipeline(
@@ -21,7 +23,9 @@ public sealed class TaggingPipeline
         IPlateReader plateReader,
         NumberMatcher? matcher = null,
         FieldBuilder? fieldBuilder = null,
-        Func<ManifestPhoto, IEvidence?>? evidenceProvider = null)
+        Func<ManifestPhoto, IEvidence?>? evidenceProvider = null,
+        Func<IPreview, DetectedCar, IEvidence?>? visualEvidenceProvider = null,
+        BurstReviewProcessor? burstProcessor = null)
     {
         this.entryList = entryList ?? throw new ArgumentNullException(nameof(entryList));
         this.eventContext = eventContext ?? throw new ArgumentNullException(nameof(eventContext));
@@ -31,6 +35,8 @@ public sealed class TaggingPipeline
         this.matcher = matcher ?? new NumberMatcher();
         this.fieldBuilder = fieldBuilder ?? new FieldBuilder();
         this.evidenceProvider = evidenceProvider;
+        this.visualEvidenceProvider = visualEvidenceProvider;
+        this.burstProcessor = burstProcessor;
     }
 
     /// <summary>Processes photos from a source and forwards results to a workflow-specific sink.</summary>
@@ -46,7 +52,9 @@ public sealed class TaggingPipeline
     public ResultFile Process(Manifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        var photos = manifest.Photos.Select(ProcessPhoto).ToArray();
+        IReadOnlyList<PhotoResult> photos = manifest.Photos.Select(ProcessPhoto).ToArray();
+        if (burstProcessor is not null)
+            photos = burstProcessor.Apply(manifest, photos);
         return new ResultFile(1, "0.1.0", DateTimeOffset.UtcNow, photos);
     }
 
@@ -97,7 +105,28 @@ public sealed class TaggingPipeline
                 continue;
             }
 
-            var match = matcher.Match(entryList, hypotheses, evidenceProvider?.Invoke(photo));
+            var match = matcher.Match(entryList, hypotheses);
+            // Evidence validates listed number candidates; it cannot identify a car by itself.
+            if (match.Status == MatchStatus.Review)
+            {
+                var sources = new List<IEvidence>();
+                if (evidenceProvider?.Invoke(photo) is { } contextualEvidence)
+                    sources.Add(contextualEvidence);
+                if (visualEvidenceProvider?.Invoke(preview, detection) is { } visualEvidence)
+                    sources.Add(visualEvidence);
+                if (sources.Count > 0)
+                {
+                    var numberCandidate = match.BestNumber!;
+                    match = matcher.Match(entryList, hypotheses, new CompositeEvidence(sources));
+                    // Strong evidence against the original number requires review, even if reranking finds another candidate.
+                    var conflicts = sources.OfType<CompositeEvidence>().SelectMany(source => source.Sources)
+                        .Concat(sources.Where(source => source is not CompositeEvidence))
+                        .Where(source => source.GetWeight(numberCandidate, entryList) < matcher.Options.EvidenceConflictThreshold)
+                        .Select(source => $"evidence_conflict:{source.Name}").ToArray();
+                    if (conflicts.Length > 0)
+                        match = match with { Status = MatchStatus.Review, Reasons = match.Reasons.Concat(conflicts).Distinct().ToArray() };
+                }
+            }
             if (match.Status == MatchStatus.Auto)
             {
                 if (!entryList.TryGetEntry(match.BestNumber!, out _))

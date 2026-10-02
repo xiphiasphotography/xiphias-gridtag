@@ -6,6 +6,28 @@ namespace XiPHiAS.GridTag.Cli.Tests;
 public sealed class EvaluationTests
 {
     [Fact]
+    public void BatchEvaluation_ReportsReviewProposalsWithoutIncreasingAutoRecall()
+    {
+        EvaluationLabel[] labels = [new("source.jpg", ["007"]), new("target.jpg", ["007"])];
+        var report = new EvaluationRunner().EvaluateBatch(labels, _ => [
+            new PhotoResult(1, "auto", [], null, [new("007", 0.99, "ocr", true)]),
+            new PhotoResult(2, "review", ["burst_propagation_review"], null, [new("007", 1, "burst", false)])]);
+        Assert.Equal(1, report.AutoPhotos);
+        Assert.Equal(1, report.ReviewPhotos);
+        Assert.Equal(0.5, report.Recall);
+        Assert.Equal(1, report.ReasonCounts["burst_propagation_review"]);
+        Assert.Throws<InvalidDataException>(() => new EvaluationRunner().EvaluateBatch(labels, _ => []));
+    }
+    [Fact]
+    public void Evaluation_DoesNotAcceptSevenFor007()
+    {
+        var report = new EvaluationRunner().Evaluate([new EvaluationLabel("bond.jpg", ["007"])],
+            _ => new PhotoResult(1, "auto", [], null, [new CarCandidate("7", 0.99, "ocr", true)]));
+        Assert.Equal(0, report.CorrectAutoPhotos);
+        Assert.Equal(1, report.WrongAutoPhotos);
+        Assert.Equal(1, report.Confusions["007->7"]);
+    }
+    [Fact]
     public void Evaluation_WithFakePipelineProviders_ReportsRequiredMetrics()
     {
         var labels = new[]

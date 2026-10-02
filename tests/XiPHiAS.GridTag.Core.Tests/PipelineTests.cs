@@ -7,6 +7,118 @@ namespace XiPHiAS.GridTag.Core.Tests;
 
 public sealed class PipelineTests
 {
+    [Theory]
+    [InlineData(0.8, null, 0, "auto", 1)]
+    [InlineData(0.8, null, 10, "review", 1)]
+    [InlineData(0.99, null, 10, "auto", 0)]
+    [InlineData(0.8, "69", 10, "manual", 0)]
+    public void TimingOnlyChecksUncertainListedNumbers(double probability, string? manual,
+        int passingGap, string status, int expectedCalls)
+    {
+        var capture = new DateTimeOffset(2026, 10, 2, 14, 0, 0, TimeSpan.FromHours(2));
+        var calls = 0;
+        var pipeline = new TaggingPipeline(CreateEntryList(), CreateContext(),
+            new FakePreviewProvider(new FakePreview(100, 60)),
+            new FakeCarDetector(new DetectedCar("large", 0.95)),
+            new FakePlateReader(new NumberHypothesis("69", probability)),
+            evidenceProvider: photo =>
+            {
+                calls++;
+                return new TimingCrossCheckEvidence(photo.CaptureTime.DateTime,
+                    [new("69", capture.DateTime.AddSeconds(5 + passingGap))], TimeSpan.FromSeconds(5));
+            });
+        var result = pipeline.ProcessPhoto(new ManifestPhoto(1, "u1", "photo.jpg", capture, manual));
+        Assert.Equal(status, result.Status);
+        Assert.Equal(expectedCalls, calls);
+        if (status == "review")
+        {
+            Assert.Contains("evidence_conflict:timing", result.Reasons);
+            Assert.Null(result.Fields);
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "auto")]
+    [InlineData("#007", "manual")]
+    public void LeadingZeros_ArePreservedInCarIdentityAndGeneratedFields(string? manualNumber, string status)
+    {
+        var entries = new EntryList([
+            new Entry("007", "Bond", "Aston Martin", "PRO", []),
+            new Entry("7", "Other", "Car", "PRO", [])]);
+        var pipeline = new TaggingPipeline(entries, CreateContext(),
+            new FakePreviewProvider(new FakePreview(100, 60)),
+            new FakeCarDetector(new DetectedCar("car", 0.99)),
+            new FakePlateReader(new NumberHypothesis("007", 0.99)));
+        var result = pipeline.ProcessPhoto(new ManifestPhoto(1, "bond", "photo.jpg", DateTimeOffset.UtcNow, manualNumber));
+        Assert.Equal(status, result.Status);
+        Assert.NotNull(result.Cars);
+        Assert.Equal("007", Assert.Single(result.Cars).Number);
+        Assert.NotNull(result.Fields);
+        Assert.Equal("#007 Bond Aston Martin", result.Fields.Headline);
+        Assert.Contains("#007", result.Fields.Keywords);
+        Assert.DoesNotContain("#7", result.Fields.Keywords);
+    }
+    [Theory]
+    [InlineData("69", 0.99, null, "auto", 0)]
+    [InlineData("69", 0.80, null, "auto", 1)]
+    [InlineData("999", 0.80, null, "review", 0)]
+    [InlineData("", 0.80, null, "review", 0)]
+    [InlineData("69", 0.80, "69", "manual", 0)]
+    public void VisualEvidence_IsOnlyReadForUncertainListedNumbers(string number, double probability,
+        string? manualNumber, string expectedStatus, int expectedCalls)
+    {
+        var preview = new FakePreview(100, 60);
+        var detection = new DetectedCar("large", 0.95);
+        var calls = 0;
+        var pipeline = new TaggingPipeline(CreateEntryList(), CreateContext(),
+            new FakePreviewProvider(preview), new FakeCarDetector(detection),
+            new FakePlateReader(new NumberHypothesis(number, probability)),
+            visualEvidenceProvider: (actualPreview, actualDetection) =>
+            {
+                calls++;
+                Assert.Same(preview, actualPreview);
+                Assert.Same(detection, actualDetection);
+                return new CarModelEvidence(new CarModelObservation("Ferrari 296", 0.9));
+            });
+
+        var result = pipeline.ProcessPhoto(new ManifestPhoto(1, "u1", "photo.arw",
+            DateTimeOffset.UtcNow, manualNumber));
+
+        Assert.Equal(expectedStatus, result.Status);
+        Assert.Equal(expectedCalls, calls);
+    }
+
+    [Fact]
+    public void ConflictingVisualEvidence_KeepsUncertainNumberInReview()
+    {
+        var pipeline = new TaggingPipeline(CreateEntryList(), CreateContext(),
+            new FakePreviewProvider(new FakePreview(100, 60)),
+            new FakeCarDetector(new DetectedCar("large", 0.95)),
+            new FakePlateReader(new NumberHypothesis("69", 0.80)),
+            visualEvidenceProvider: (_, _) => new CarModelEvidence(new CarModelObservation("Audi", 0.95)));
+
+        var result = pipeline.ProcessPhoto(new ManifestPhoto(1, "u1", "photo.arw", DateTimeOffset.UtcNow));
+
+        Assert.Equal("review", result.Status);
+        Assert.Contains("evidence_conflict:car_model", result.Reasons);
+    }
+
+    [Fact]
+    public void DriverSupport_CannotHideStrongModelConflict()
+    {
+        var pipeline = new TaggingPipeline(CreateEntryList(), CreateContext(),
+            new FakePreviewProvider(new FakePreview(100, 60)),
+            new FakeCarDetector(new DetectedCar("large", 0.95)),
+            new FakePlateReader(new NumberHypothesis("69", 0.80)),
+            visualEvidenceProvider: (_, _) => new CompositeEvidence([
+                new CarModelEvidence(new CarModelObservation("Audi", 0.80)),
+                new DriverNameEvidence([new DriverNameObservation("Thierry Vermeulen", 1.0)])]));
+
+        var result = pipeline.ProcessPhoto(new ManifestPhoto(1, "u1", "photo.arw", DateTimeOffset.UtcNow));
+        Assert.Equal("review", result.Status);
+        Assert.Contains("evidence_conflict:car_model", result.Reasons);
+    }
+
     [Fact]
     public void ManualSingleNumber_IsStoredAsManual()
     {

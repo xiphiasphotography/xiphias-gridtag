@@ -11,13 +11,16 @@ D:\foto-003.ARW;
 
 Een lege `numbers`-waarde betekent dat de foto geen auto heeft. Nummers worden met dezelfde `NumberNormalizer` als de entrylist genormaliseerd. De evaluator verandert geen matcher-thresholds.
 
+Voorloopnullen blijven behouden: een voorspelling `7` voor label `007` is fout.
+Gebruik in de entrylist exact dezelfde schrijfwijze als het startnummer op de auto.
+
 ## Gebruik
 
 ```text
 dotnet run --project src/XiPHiAS.GridTag.Cli -- eval --labels samples/labels.example.csv --entrylist samples/entrylist.csv --session samples/session.example.json
 ```
 
-Het commando schrijft geen foto’s en verandert geen labels. De huidige command-line evaluator gebruikt de lokale stub providers. Daardoor is de huidige meting een contract- en pipeline-baseline: zonder vision-preview komen foto’s op `review` met `no_preview`. De fake providers in de tests maken model-onafhankelijke evaluatie van de rekenregels mogelijk.
+Het commando schrijft geen foto's en verandert geen labels. De evaluator leest RAW-previews en volledige JPEG-input. Gebruik `--vision-config` en `--plate-config` voor detector- en nummermodellen; zonder deze opties worden de null-readers gebruikt. `--car-model`/`--car-model-labels` en `--driver-name-model`/`--driver-name-alphabet` sluiten optionele evidence aan, uitsluitend voor onzekere bekende nummerkandidaten. Zie [modelvereisten en metingen](evidence-burst-timing.md). De fake providers in de tests maken model-onafhankelijke evaluatie van de rekenregels mogelijk.
 
 ## Definities
 
@@ -41,6 +44,25 @@ Volgens AGENTS.md §9:
 
 De command-output bevat auto precision, recall, review rate, seconds/photo, per-reason counts, confusions en de gecombineerde beslissing. Thresholds worden uitsluitend via evaluatiegegevens gewijzigd; task 8 wijzigt ze niet.
 
+Daarnaast toont de CLI aantallen correcte/foute auto-foto's, auto rate en
+evidence-observaties. Met `--out work/eval-results.json` bewaar je de individuele
+fotoresultaten in het bestaande results-contract (schemaVersion 1). ID's volgen
+de CSV-volgorde vanaf 1. De volledige nummerreeks, inclusief secundaire auto's,
+moet overeenkomen met het label voor een correct auto-resultaat.
+
+Voor de headerloze `.training/dataset_labels.csv` met bestandsnamen is een
+lokale omzetting naar `path;numbers` met bereikbare paden nodig. Zie
+[taak 10a: voor/nameting](task10a-evaluation.md) voor die omzetting en de opdrachten
+met de lokale YOLOX-, PaddleOCR- en ResNet-modellen. Matchingthresholds blijven
+ongewijzigd; ground-truthlabels worden uitsluitend door de evaluator gebruikt.
+
+Burstopties `--burst-max-gap`/`--burst-similarity` maken de optionele review-
+postprocessing beschikbaar. Bij `eval` komen capturetijden uit EXIF; ontbrekende
+tijden sluiten een foto uit van burstpropagatie. De CLI rapporteert het aantal
+`burst review photos`. Kandidaten met source `burst` blijven review en tellen
+niet als automatische matches. Batchtijd omvat EXIF-lezen en burstverwerking.
+Zie [de burstverificatie](task10b-burst-propagation.md).
+
 ## Fake-provider tests
 
 De tests gebruiken geen RAW-bestanden en geen netwerk of cloudservice. Ze leveren per label vooraf gemaakte `PhotoResult`-waarden aan de evaluator en controleren:
@@ -54,4 +76,4 @@ De tests gebruiken geen RAW-bestanden en geen netwerk of cloudservice. Ze levere
 
 ## Huidige baseline en beperking
 
-`gridtag eval` gebruikt in productie de bestaande `StubRawPreviewProvider`, `NullCarDetector` en `NullPlateReader`. De sample-evaluatie kan daarom nog geen herkenningskwaliteit aantonen: zonder echte preview wordt geen nummer gelezen. De gemeten recall/precision en go/no-go-uitkomst zijn dus een technische baseline totdat task 9 echte vision providers toevoegt. Threshold tuning is niet uitgevoerd.
+De meegeleverde voorbeeldconfiguraties verwijzen naar ontbrekende modelgewichten. Zonder modelconfiguraties gebruikt `gridtag eval` `NullCarDetector` en `NullPlateReader`; ontbrekende foto's geven `error` met `no_preview`. De sample-evaluatie toont dan geen herkenningskwaliteit aan. De JPEG-rooktest is herhaalbaar met `--labels samples/labels.task10a-smoke.csv` als de bijbehorende foto aanwezig is. Threshold tuning is niet uitgevoerd.

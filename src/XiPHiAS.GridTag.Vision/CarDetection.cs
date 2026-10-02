@@ -14,7 +14,8 @@ public sealed record CarDetectorConfig(
     float ConfidenceThreshold = 0.25f,
     float NmsThreshold = 0.45f,
     int CarClassId = 2,
-    int DeviceId = 0)
+    int DeviceId = 0,
+    string ModelFormat = "generic")
 {
     /// <summary>Loads and validates detector configuration from JSON.</summary>
     public static CarDetectorConfig Load(string path)
@@ -27,7 +28,8 @@ public sealed record CarDetectorConfig(
         })
             ?? throw new InvalidDataException("Detector config is empty.");
         if (string.IsNullOrWhiteSpace(config.ModelPath) || config.InputSize <= 0 || config.InputSize % 32 != 0 ||
-            config.ConfidenceThreshold is < 0 or > 1 || config.NmsThreshold is < 0 or > 1 || config.CarClassId < 0)
+            config.ConfidenceThreshold is < 0 or > 1 || config.NmsThreshold is < 0 or > 1 || config.CarClassId < 0 ||
+            config.ModelFormat is not ("generic" or "yolox"))
             throw new InvalidDataException("Detector config contains invalid model path, size, threshold, or class values.");
         var baseDirectory = Path.GetDirectoryName(Path.GetFullPath(path)) ?? Directory.GetCurrentDirectory();
         return Path.IsPathRooted(config.ModelPath)
@@ -155,40 +157,62 @@ public sealed class OnnxCarDetector : ICarDetector, IDisposable
     public OnnxCarDetector(CarDetectorConfig config)
     {
         this.config = config ?? throw new ArgumentNullException(nameof(config));
-        var sessionOptions = new SessionOptions();
+        using var sessionOptions = new SessionOptions();
+        sessionOptions.EnableMemoryPattern = false;
+        sessionOptions.ExecutionMode = ExecutionMode.ORT_SEQUENTIAL;
         sessionOptions.AppendExecutionProvider_DML(config.DeviceId);
         session = new InferenceSession(config.ModelPath, sessionOptions);
-        inputName = session.InputMetadata.Keys.Single();
-    }
-
-    /// <summary>Runs detection and returns car detections; failed frames return no detections.</summary>
-    public IReadOnlyList<DetectedCar> Detect(IPreview preview)
-    {
         try
         {
-            if (preview is not RawPreview rawPreview)
-                return Array.Empty<DetectedCar>();
-
-            using var stream = new MemoryStream(rawPreview.JpegBytes, writable: false);
-            using var image = Image.FromStream(stream);
-            using var bitmap = new Bitmap(image);
-            var pixels = ReadPixels(bitmap);
-            var letterbox = LetterboxPreprocessor.Apply(pixels, bitmap.Width, bitmap.Height, config.InputSize);
-            var tensor = new DenseTensor<float>(letterbox.Tensor, [1, 3, config.InputSize, config.InputSize]);
-            using var results = session.Run([NamedOnnxValue.CreateFromTensor(inputName, tensor)]);
-            var output = results.First().AsTensor<float>();
-            var dimensions = output.Dimensions.ToArray();
-            var columnCount = dimensions[^1];
-            var rowCount = dimensions[^2];
-            var detections = YoloPostprocessor.Process(output.ToArray(), rowCount, columnCount, config.CarClassId,
-                config.ConfidenceThreshold, config.NmsThreshold, letterbox, bitmap.Width, bitmap.Height);
-            return detections.Select((detection, index) => new DetectedCar(
-                $"car-{index}", detection.Score, detection.Bounds)).ToArray();
+            inputName = session.InputMetadata.Keys.Single();
+            if (config.ModelFormat is not ("generic" or "yolox"))
+                throw new InvalidDataException("Detector model format must be generic or yolox.");
+            if (config.ModelFormat == "yolox")
+            {
+                var input = session.InputMetadata[inputName];
+                var output = session.OutputMetadata.Values.Single();
+                var size = config.InputSize;
+                var rows = new[] { 8, 16, 32 }.Sum(stride => (size / stride) * (size / stride));
+                if (input.ElementType != typeof(float) || !input.Dimensions.SequenceEqual(new[] { 1, 3, size, size }) ||
+                    output.ElementType != typeof(float) || !output.Dimensions.SequenceEqual(new[] { 1, rows, 85 }))
+                    throw new InvalidDataException("YOLOX requires float input [1,3,size,size] and raw COCO output [1,grid cells,85].");
+            }
         }
         catch
         {
-            return Array.Empty<DetectedCar>();
+            session.Dispose();
+            throw;
         }
+    }
+
+    /// <summary>Runs detection; failures propagate to the per-photo pipeline error boundary.</summary>
+    public IReadOnlyList<DetectedCar> Detect(IPreview preview)
+    {
+        if (preview is not RawPreview rawPreview)
+            return Array.Empty<DetectedCar>();
+
+        using var stream = new MemoryStream(rawPreview.JpegBytes, writable: false);
+        using var image = Image.FromStream(stream);
+        using var bitmap = new Bitmap(image);
+        var pixels = ReadPixels(bitmap);
+        var letterbox = config.ModelFormat == "yolox"
+            ? YoloXPreprocessor.Apply(pixels, bitmap.Width, bitmap.Height, config.InputSize)
+            : LetterboxPreprocessor.Apply(pixels, bitmap.Width, bitmap.Height, config.InputSize);
+        var tensor = new DenseTensor<float>(letterbox.Tensor, [1, 3, config.InputSize, config.InputSize]);
+        using var results = session.Run([NamedOnnxValue.CreateFromTensor(inputName, tensor)]);
+        var output = results.First().AsTensor<float>();
+        var dimensions = output.Dimensions.ToArray();
+        if (dimensions.Length != 3 || dimensions[0] != 1)
+            throw new InvalidDataException("Detector output must have shape [1,rows,columns].");
+        var columnCount = dimensions[^1];
+        var rowCount = dimensions[^2];
+        var values = output.ToArray();
+        if (config.ModelFormat == "yolox")
+            YoloXPostprocessor.Decode(values, rowCount, columnCount, config.InputSize);
+        var detections = YoloPostprocessor.Process(values, rowCount, columnCount, config.CarClassId,
+            config.ConfidenceThreshold, config.NmsThreshold, letterbox, bitmap.Width, bitmap.Height);
+        return detections.Select((detection, index) => new DetectedCar(
+            $"car-{index}", detection.Score, detection.Bounds)).ToArray();
     }
 
     /// <summary>Releases the ONNX Runtime session.</summary>

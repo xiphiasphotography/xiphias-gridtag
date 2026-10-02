@@ -5,6 +5,34 @@ namespace XiPHiAS.GridTag.Core.Tests;
 
 public sealed class EvidenceAndBurstTests
 {
+    [Theory]
+    [InlineData("VERMEULEN", true)]
+    [InlineData("T. VERMEULEN", true)]
+    [InlineData("en", false)]
+    [InlineData("Green energy", false)]
+    public void DriverNames_MatchWholeNamesOrUniqueSurnameInsteadOfFragments(string text, bool supported)
+    {
+        var evidence = new DriverNameEvidence([new DriverNameObservation(text, 0.9)]);
+        Assert.Equal(supported, evidence.GetWeight("69", Entries()) > 1);
+    }
+
+    [Fact]
+    public void SharedDriverSurname_IsNeutral()
+    {
+        var entries = new EntryList([
+            new Entry("1", "A", "Ferrari", "PRO", [new Driver("John Smith", "GBR")]),
+            new Entry("2", "B", "Ferrari", "PRO", [new Driver("Jane Smith", "GBR")])]);
+        Assert.Equal(1, new DriverNameEvidence([new("SMITH", 0.99)]).GetWeight("1", entries));
+    }
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void EmptyDriverObservation_IsNeutral(string name)
+    {
+        var evidence = new DriverNameEvidence([new DriverNameObservation(name, 0.99)]);
+        Assert.Equal(1.0, evidence.GetWeight("69", Entries()));
+    }
+
     [Fact]
     public void CarModelEvidence_StrengthensMatchingCandidate()
     {

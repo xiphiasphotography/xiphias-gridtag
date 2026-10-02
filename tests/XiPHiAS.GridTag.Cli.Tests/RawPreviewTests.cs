@@ -9,7 +9,7 @@ namespace XiPHiAS.GridTag.Cli.Tests;
 public sealed class RawPreviewTests
 {
     [Fact]
-    public void Provider_DecodesJpegFallbackToPreview()
+    public void Provider_PreservesOriginalJpegResolutionAndBytes()
     {
         var path = CreateJpegFile();
         try
@@ -17,10 +17,10 @@ public sealed class RawPreviewTests
             var preview = new EmbeddedJpegRawPreviewProvider().GetPreview(path) as RawPreview;
 
             Assert.NotNull(preview);
-            Assert.Equal(RawPreviewSource.HalfSizeDecode, preview.Source);
-            Assert.Equal(2, preview.Width);
-            Assert.Equal(1, preview.Height);
-            Assert.NotEmpty(preview.JpegBytes);
+            Assert.Equal(RawPreviewSource.JpegInput, preview.Source);
+            Assert.Equal(4, preview.Width);
+            Assert.Equal(2, preview.Height);
+            Assert.Equal(File.ReadAllBytes(path), preview.JpegBytes);
         }
         finally
         {

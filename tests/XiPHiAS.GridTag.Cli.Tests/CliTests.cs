@@ -8,6 +8,97 @@ public sealed class CliTests
 {
     private static readonly string RepositoryRoot = FindRepositoryRoot();
 
+    [Theory]
+    [InlineData("invalid", true)]
+    [InlineData("25:00:00", true)]
+    [InlineData("00:00:05", false)]
+    public void InvalidTimingOptionsReturnInputError(string offset, bool withCsv)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"gridtag-timing-{Guid.NewGuid():N}.csv");
+        try
+        {
+            File.WriteAllText(path, "number;time\n");
+            var args = new List<string> { "eval", "--labels", Path.Combine(RepositoryRoot, "samples", "labels.example.csv"),
+                "--entrylist", Path.Combine(RepositoryRoot, "samples", "entrylist.csv"),
+                "--session", Path.Combine(RepositoryRoot, "samples", "session.example.json"), "--clock-offset", offset };
+            if (withCsv)
+                args.AddRange(["--timing-csv", path]);
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+            Assert.Equal(3, CliApp.Run(args.ToArray(), output, error));
+            Assert.Contains("clock-offset", error.ToString());
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Theory]
+    [InlineData("--burst-max-gap", "-1")]
+    [InlineData("--burst-max-gap", "NaN")]
+    [InlineData("--burst-similarity", "1.1")]
+    [InlineData("--burst-similarity", "invalid")]
+    public void InvalidBurstOptions_ReturnInputError(string option, string value)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var code = CliApp.Run(["eval", "--labels", Path.Combine(RepositoryRoot, "samples", "labels.example.csv"),
+            "--entrylist", Path.Combine(RepositoryRoot, "samples", "entrylist.csv"),
+            "--session", Path.Combine(RepositoryRoot, "samples", "session.example.json"), option, value], output, error);
+        Assert.Equal(3, code);
+        Assert.Contains("burst", error.ToString());
+    }
+
+    [Fact]
+    public void Eval_WritesOptionalPerPhotoResultsWithoutChangingTheContract()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"gridtag-eval-{Guid.NewGuid():N}.json");
+        try
+        {
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+            var code = CliApp.Run(["eval", "--labels", Path.Combine(RepositoryRoot, "samples", "labels.example.csv"),
+                "--entrylist", Path.Combine(RepositoryRoot, "samples", "entrylist.csv"),
+                "--session", Path.Combine(RepositoryRoot, "samples", "session.example.json"), "--out", path], output, error);
+            Assert.Equal(0, code);
+            using var json = JsonDocument.Parse(File.ReadAllText(path));
+            Assert.Equal(1, json.RootElement.GetProperty("schemaVersion").GetInt32());
+            Assert.Equal(4, json.RootElement.GetProperty("photos").GetArrayLength());
+            Assert.Contains("auto photos: 0", output.ToString());
+            Assert.Contains("model observations: 0", output.ToString());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Theory]
+    [InlineData("--number-ocr", "number-ocr-model")]
+    [InlineData("--driver-name-detector", "driver-name-model")]
+    public void PaddleEvidenceOptions_RequireRecognizer(string option, string missingOption)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var code = CliApp.Run(["eval", "--labels", Path.Combine(RepositoryRoot, "samples", "labels.example.csv"),
+            "--entrylist", Path.Combine(RepositoryRoot, "samples", "entrylist.csv"),
+            "--session", Path.Combine(RepositoryRoot, "samples", "session.example.json"), option, "missing.onnx"], output, error);
+        Assert.Equal(3, code);
+        Assert.Contains(missingOption, error.ToString());
+    }
+
+    [Theory]
+    [InlineData("--car-model", "missing.onnx", "car-model-labels")]
+    [InlineData("--driver-name-model", "missing.onnx", "driver-name-alphabet")]
+    public void EvidenceOptions_RequireMatchingVocabulary(string option, string path, string missingOption)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var code = CliApp.Run(["eval", "--labels", Path.Combine(RepositoryRoot, "samples", "labels.example.csv"),
+            "--entrylist", Path.Combine(RepositoryRoot, "samples", "entrylist.csv"),
+            "--session", Path.Combine(RepositoryRoot, "samples", "session.example.json"), option, path], output, error);
+        Assert.Equal(3, code);
+        Assert.Contains(missingOption, error.ToString());
+    }
+
     [Fact]
     public void Run_SampleManifestProducesExpectedStatusesAndManualFields()
     {

@@ -83,7 +83,7 @@ public sealed class NumberMatcher
         }
 
         var ranked = scores.CandidateScores
-            .ToDictionary(pair => pair.Key, pair => pair.Value * evidenceWeights[pair.Key], StringComparer.Ordinal)
+            .ToDictionary(pair => pair.Key, pair => Math.Min(1.0, pair.Value * evidenceWeights[pair.Key]), StringComparer.Ordinal)
             .OrderByDescending(pair => pair.Value)
             .ThenBy(pair => pair.Key, StringComparer.Ordinal)
             .ToArray();

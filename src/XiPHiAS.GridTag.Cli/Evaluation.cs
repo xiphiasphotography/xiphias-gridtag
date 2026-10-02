@@ -28,6 +28,22 @@ public sealed record EvaluationReport(
 /// <summary>Runs deterministic evaluations against a supplied per-photo processor.</summary>
 public sealed class EvaluationRunner
 {
+    /// <summary>Evaluates a batch processor, including recognition and burst postprocessing in the timing.</summary>
+    public EvaluationReport EvaluateBatch(IReadOnlyList<EvaluationLabel> labels,
+        Func<IReadOnlyList<EvaluationLabel>, IReadOnlyList<PhotoResult>> processor)
+    {
+        ArgumentNullException.ThrowIfNull(labels);
+        ArgumentNullException.ThrowIfNull(processor);
+        var stopwatch = Stopwatch.StartNew();
+        var results = processor(labels);
+        if (results.Count != labels.Count)
+            throw new InvalidDataException("Batch evaluation must return one result per label, in label order.");
+        var index = 0;
+        var report = Evaluate(labels, _ => results[index++]);
+        stopwatch.Stop();
+        return report with { SecondsPerPhoto = stopwatch.Elapsed.TotalSeconds / Math.Max(1, labels.Count) };
+    }
+
     /// <summary>Evaluates labels without changing matcher thresholds or vision configuration.</summary>
     public EvaluationReport Evaluate(IReadOnlyList<EvaluationLabel> labels, Func<EvaluationLabel, PhotoResult> processor)
     {

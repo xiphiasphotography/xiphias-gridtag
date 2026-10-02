@@ -4,6 +4,32 @@ namespace XiPHiAS.GridTag.Core.Tests;
 
 public sealed class NumberMatcherTests
 {
+    [Theory]
+    [InlineData("007")]
+    [InlineData("7")]
+    public void LeadingZeros_AreSignificantForMatching(string number)
+    {
+        var result = new NumberMatcher().Match(CreateEntryList("007", "7"), [new NumberHypothesis(number, 0.99)]);
+        Assert.Equal(MatchStatus.Auto, result.Status);
+        Assert.Equal(number, result.BestNumber);
+    }
+
+    [Fact]
+    public void MissingLeadingZeros_DoNotMatchBondCar()
+    {
+        var result = new NumberMatcher().Match(CreateEntryList("007"), [new NumberHypothesis("7", 0.99)]);
+        Assert.Equal(MatchStatus.NoMatch, result.Status);
+        Assert.Null(result.BestNumber);
+    }
+    [Fact]
+    public void SupportiveEvidence_CapsCandidateProbabilityAtOne()
+    {
+        var result = new NumberMatcher().Match(CreateEntryList("69"),
+            [new NumberHypothesis("69", 0.8)], new FixedEvidence("support", 1.5));
+        Assert.Equal(MatchStatus.Auto, result.Status);
+        Assert.Equal(1.0, result.BestProbability);
+    }
+
     [Fact]
     public void StrongSingleHypothesisMatchesAsAuto()
     {
