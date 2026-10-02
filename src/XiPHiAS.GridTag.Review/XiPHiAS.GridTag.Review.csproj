@@ -9,5 +9,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../XiPHiAS.GridTag.Core/XiPHiAS.GridTag.Core.csproj" />
+    <ProjectReference Include="../XiPHiAS.GridTag.Vision/XiPHiAS.GridTag.Vision.csproj" />
   </ItemGroup>
 </Project>

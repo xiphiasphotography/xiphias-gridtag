@@ -79,6 +79,14 @@ Verify with `dotnet restore XiPHiAS.GridTag.slnx`, `dotnet build XiPHiAS.GridTag
 3. **Lightroom Classic**: zelf bewerken; zet daarna de definitieve beelden op **Pick**.
 4. **XiPHiAS GridTag** (menu in Lightroom): alleen die Picks worden geanalyseerd en krijgen auto-specifieke metadata.
 5. **Review in Lightroom**: foto's die niet automatisch lukken staan in de collectie `GridTag Review` (of `GridTag GeenAuto`). Typ daar zelf het nummer in het veld *Startnummer (handmatig)* en start "verwerk handmatige nummers".
+
+Voor een aparte lokale weergave van `review`- en `noCar`-foto's kun je de bestaande
+WPF-app starten met `dotnet run --project src/XiPHiAS.GridTag.Review`.
+Open `results.json`; het naastgelegen `manifest.json` wordt automatisch gebruikt,
+of kies het via **Kies manifest**. De app toont statusfilters, redenen, kandidaten
+en JPEG/PNG/RAW-previews van de bronfoto's. Handmatige correcties blijven in
+Lightroom; de app schrijft geen foto's of metadata. Zie de
+[handleiding en controlelijst voor taak 10d](docs/task10d-review-app.md).
 6. **Export** vanuit Lightroom.
 
 XiPHiAS GridTag schrijft rechtstreeks in de Lightroom-catalogus. Er is dus geen "metadata opslaan" of "metadata lezen" nodig tussen de stappen, en er worden geen XMP-sidecars door de tool aangepast. XiPHiAS GridTag doet nadrukkelijk geen selectie, rating, beeldbewerking of export; dat blijft handwerk in de bestaande workflow.

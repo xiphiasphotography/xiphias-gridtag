@@ -4,6 +4,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/XiPHiAS.GridTag.Review/ReviewSession.cs" Link="ReviewSession.cs" />
     <ProjectReference Include="../../src/XiPHiAS.GridTag.Core/XiPHiAS.GridTag.Core.csproj" />
     <ProjectReference Include="../../src/XiPHiAS.GridTag.Vision/XiPHiAS.GridTag.Vision.csproj" />
     <None Include="../../samples/entrylist.csv" Link="samples/entrylist.csv" CopyToOutputDirectory="PreserveNewest" />

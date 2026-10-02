@@ -1,100 +1,172 @@
-using System.IO;
+﻿using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using XiPHiAS.GridTag.Vision;
 
 namespace XiPHiAS.GridTag.Review;
 
 public partial class MainWindow : Window
 {
-    private readonly List<ReviewPhoto> photos = [];
+    private IReadOnlyList<ReviewPhoto> photos = [];
+    private CancellationTokenSource? loadCancellation;
+    private CancellationTokenSource? previewCancellation;
+    private string? resultsPath;
+    private bool closed;
 
     public MainWindow()
     {
         InitializeComponent();
+        Closed += (_, _) =>
+        {
+            closed = true;
+            loadCancellation?.Cancel();
+            previewCancellation?.Cancel();
+        };
     }
 
-    private void OpenResultsClick(object sender, RoutedEventArgs e)
+    private async void OpenResultsClick(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog { Filter = "XiPHiAS GridTag results|results.json|JSON files|*.json" };
-        if (dialog.ShowDialog() != true)
+        var dialog = new OpenFileDialog { Filter = "GridTag-resultaten (*.json)|*.json", Title = "Open results.json" };
+        if (dialog.ShowDialog(this) != true)
             return;
+        var manifest = Path.Combine(Path.GetDirectoryName(dialog.FileName)!, "manifest.json");
+        await LoadAsync(dialog.FileName, File.Exists(manifest) ? manifest : null);
+    }
 
+    private async void OpenManifestClick(object sender, RoutedEventArgs e)
+    {
+        if (resultsPath is null)
+            return;
+        var dialog = new OpenFileDialog { Filter = "GridTag-manifest (*.json)|*.json", Title = "Kies het bijbehorende manifest.json" };
+        if (dialog.ShowDialog(this) == true)
+            await LoadAsync(resultsPath, dialog.FileName);
+    }
+
+    private async Task LoadAsync(string path, string? manifest)
+    {
+        loadCancellation?.Cancel();
+        using var cancellation = new CancellationTokenSource();
+        loadCancellation = cancellation;
+        SummaryText.Text = "Resultaten laden…";
         try
         {
-            LoadResults(dialog.FileName);
+            var loaded = await Task.Run(() => ReviewSession.LoadAsync(path, manifest, cancellation.Token), cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            photos = loaded;
+            resultsPath = path;
+            ManifestButton.IsEnabled = true;
+            SourceText.Text = $"Resultaten: {path}\nManifest: {manifest ?? "niet geladen — kies een manifest voor fotopaden en previews"}";
+            ApplyFilter();
         }
-        catch (Exception exception)
+        catch (OperationCanceledException) { }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or KeyNotFoundException or FormatException or ArgumentException)
         {
-            MessageBox.Show(this, exception.Message, "XiPHiAS GridTag Review", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (!cancellation.IsCancellationRequested && !closed)
+            {
+                SummaryText.Text = "Laden mislukt; de vorige fotolijst blijft beschikbaar.";
+                MessageBox.Show(this, $"Kies geldige GridTag-resultaten en het bijbehorende manifest.\n\n{exception.Message}", "GridTag Review", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
-    }
-
-    private void LoadResults(string path)
-    {
-        using var document = JsonDocument.Parse(File.ReadAllText(path));
-        var root = document.RootElement;
-        if (root.GetProperty("schemaVersion").GetInt32() != 1)
-            throw new InvalidDataException("Unsupported results schemaVersion.");
-
-        var manifestPaths = LoadManifestPaths(Path.Combine(Path.GetDirectoryName(path) ?? string.Empty, "manifest.json"));
-
-        photos.Clear();
-        foreach (var item in root.GetProperty("photos").EnumerateArray())
+        finally
         {
-            var status = item.GetProperty("status").GetString() ?? string.Empty;
-            if (status is not ("review" or "noCar"))
-                continue;
-            var reasons = item.TryGetProperty("reasons", out var reasonElement)
-                ? string.Join(", ", reasonElement.EnumerateArray().Select(reason => reason.GetString()))
-                : string.Empty;
-            var id = item.GetProperty("id").GetInt32();
-            photos.Add(new ReviewPhoto(id, status, reasons, manifestPaths.GetValueOrDefault(id, string.Empty)));
+            if (ReferenceEquals(loadCancellation, cancellation))
+                loadCancellation = null;
         }
-
-        PhotoList.ItemsSource = photos;
-        if (photos.Count > 0)
-            PhotoList.SelectedIndex = 0;
     }
 
-    private static IReadOnlyDictionary<int, string> LoadManifestPaths(string path)
+    private void FilterChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!File.Exists(path))
-            return new Dictionary<int, string>();
-        using var document = JsonDocument.Parse(File.ReadAllText(path));
-        return document.RootElement.GetProperty("photos").EnumerateArray().ToDictionary(
-            photo => photo.GetProperty("id").GetInt32(),
-            photo => photo.GetProperty("path").GetString() ?? string.Empty);
+        if (PhotoList is not null)
+            ApplyFilter();
     }
 
-    private void PhotoSelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    private void ApplyFilter()
     {
+        var selectedId = (PhotoList.SelectedItem as ReviewPhoto)?.Id;
+        var filtered = photos.Where(photo => StatusFilter.SelectedIndex switch
+        {
+            1 => photo.Status == "review",
+            2 => photo.Status == "noCar",
+            _ => true
+        }).ToArray();
+        PhotoList.ItemsSource = filtered;
+        PhotoList.SelectedItem = filtered.FirstOrDefault(photo => photo.Id == selectedId) ?? filtered.FirstOrDefault();
+        SummaryText.Text = $"{filtered.Length} zichtbaar · {photos.Count(photo => photo.Status == "review")} review · {photos.Count(photo => photo.Status == "noCar")} geen auto";
+    }
+
+    private async void PhotoSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        previewCancellation?.Cancel();
+        PreviewImage.Source = null;
+        StatusText.Text = ReasonText.Text = PathText.Text = CandidateText.Text = string.Empty;
+        PreviewText.Text = "Selecteer een foto. Handmatige correcties voer je uit in Lightroom.";
         if (PhotoList.SelectedItem is not ReviewPhoto photo)
             return;
-        StatusText.Text = $"{photo.Status}  #{photo.Id}";
-        ReasonText.Text = photo.Reasons;
+        StatusText.Text = $"{(photo.Status == "noCar" ? "Geen auto" : "Review")} · #{photo.Id} · {photo.Session}";
+        ReasonText.Text = $"Redenen: {photo.Reasons}";
+        CandidateText.Text = $"Kandidaten: {(photo.Candidates.Length == 0 ? "geen" : photo.Candidates)}";
         PathText.Text = photo.Path;
-        PreviewImage.Source = TryLoadImage(photo.Path);
+        if (string.IsNullOrEmpty(photo.Path))
+        {
+            PreviewText.Text = "Geen fotopad beschikbaar. Kies het bijbehorende manifest.";
+            return;
+        }
+        using var cancellation = new CancellationTokenSource();
+        previewCancellation = cancellation;
+        PreviewText.Text = "Preview laden…";
+        try
+        {
+            var image = await Task.Run(() => LoadPreview(photo.Path, cancellation.Token), cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            PreviewImage.Source = image;
+            PreviewText.Text = image is null ? "Geen preview beschikbaar. Controleer het fotopad en de geïnstalleerde RAW-codec." : string.Empty;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            if (!cancellation.IsCancellationRequested && !closed)
+                PreviewText.Text = $"Preview niet beschikbaar: {exception.Message}";
+        }
+        finally
+        {
+            if (ReferenceEquals(previewCancellation, cancellation))
+                previewCancellation = null;
+        }
     }
 
-    private static BitmapImage? TryLoadImage(string path)
+    private static BitmapImage? LoadPreview(string path, CancellationToken cancellationToken)
     {
-        if (!File.Exists(path) || !Path.GetExtension(path).Equals(".jpg", StringComparison.OrdinalIgnoreCase) &&
-            !Path.GetExtension(path).Equals(".jpeg", StringComparison.OrdinalIgnoreCase) &&
-            !Path.GetExtension(path).Equals(".png", StringComparison.OrdinalIgnoreCase))
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!File.Exists(path))
+            return null;
+        using var stream = Path.GetExtension(path).Equals(".png", StringComparison.OrdinalIgnoreCase)
+            ? (Stream)File.OpenRead(path)
+            : new EmbeddedJpegRawPreviewProvider().GetPreview(path) is RawPreview preview
+                ? new MemoryStream(preview.JpegBytes, writable: false) : null;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (stream is null)
             return null;
         var image = new BitmapImage();
         image.BeginInit();
         image.CacheOption = BitmapCacheOption.OnLoad;
-        image.UriSource = new Uri(path);
+        image.DecodePixelWidth = 2000;
+        image.StreamSource = stream;
         image.EndInit();
         image.Freeze();
         return image;
     }
 
-    private sealed record ReviewPhoto(int Id, string Status, string Reasons, string Path)
+    private void PreviousClick(object sender, RoutedEventArgs e) => MoveSelection(-1);
+    private void NextClick(object sender, RoutedEventArgs e) => MoveSelection(1);
+
+    private void MoveSelection(int delta)
     {
-        public string Display => $"{Status}  #{Id}";
+        if (PhotoList.Items.Count == 0)
+            return;
+        PhotoList.SelectedIndex = Math.Clamp(PhotoList.SelectedIndex + delta, 0, PhotoList.Items.Count - 1);
+        PhotoList.ScrollIntoView(PhotoList.SelectedItem);
     }
 }

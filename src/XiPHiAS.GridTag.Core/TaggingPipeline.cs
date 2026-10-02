@@ -33,6 +33,15 @@ public sealed class TaggingPipeline
         this.evidenceProvider = evidenceProvider;
     }
 
+    /// <summary>Processes photos from a source and forwards results to a workflow-specific sink.</summary>
+    public ResultFile Process(IPhotoSource source, IResultSink sink)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(sink);
+        var manifest = source.Read();
+        return sink.Write(manifest, Process(manifest));
+    }
+
     /// <summary>Processes an entire manifest and returns the result file.</summary>
     public ResultFile Process(Manifest manifest)
     {
