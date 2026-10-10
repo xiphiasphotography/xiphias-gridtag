@@ -9,6 +9,21 @@ public sealed class CliTests
     private static readonly string RepositoryRoot = FindRepositoryRoot();
 
     [Theory]
+    [InlineData("cuda")]
+    [InlineData("cpu")]
+    public void InvalidDetectorProviderOrMissingConfig_ReturnInputError(string provider)
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var code = CliApp.Run(["eval", "--labels", Path.Combine(RepositoryRoot, "samples", "labels.example.csv"),
+            "--entrylist", Path.Combine(RepositoryRoot, "samples", "entrylist.csv"),
+            "--session", Path.Combine(RepositoryRoot, "samples", "session.example.json"),
+            "--detector-provider", provider], output, error);
+        Assert.Equal(3, code);
+        Assert.Contains("detector-provider", error.ToString());
+    }
+
+    [Theory]
     [InlineData("invalid", true)]
     [InlineData("25:00:00", true)]
     [InlineData("00:00:05", false)]

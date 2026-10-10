@@ -9,7 +9,7 @@ Lees vóór verdere implementatie het volledige bestand, README en alle bestande
 onder `docs/` en `samples/`. Meld ambiguïteiten en conflicten aan de eigenaar;
 los die niet op door zelf aannames te maken. Rapporteer in het Nederlands.
 
-Het onderstaande voorstel is **opgeslagen, maar nog niet goedgekeurd**.
+Het onderstaande voorstel is **gedeeltelijk goedgekeurd**; zie de aangevinkte keuzes.
 De opdracht om deze TODO te maken geldt niet als toestemming voor de keuzes.
 
 ## Eerst bevestigen met de eigenaar
@@ -17,11 +17,15 @@ De opdracht om deze TODO te maken geldt niet als toestemming voor de keuzes.
 - [ ] Concrete bestandsadapters onder **Core/IO**, volgens AGENTS §5.
   Conflict: §4 zegt dat adapters niet in Core/Vision mogen terechtkomen,
   terwijl §5 concrete adapters en de XMP-writer onder Core/IO plaatst.
-- [ ] Niet-GridTag XML-inhoud en waarden exact behouden; **XML-opmaak mag
+- [x] Niet-GridTag XML-inhoud en waarden exact behouden; **XML-opmaak mag
   veranderen** door herserialisatie met `XDocument`.
-  Dit voorstel wijkt af van het letterlijke byte-voor-byte behoud in §12/§13
-  en vereist expliciete toestemming. Als de eigenaar ook de oorspronkelijke
-  bytes/opmaak wil behouden, moet de writer daarvoor worden ontworpen.
+  Goedgekeurd door de eigenaar op 3 oktober 2026, met behoud van bruikbaarheid
+  in Photo Mechanic en Lightroom. Dit is de expliciet toegestane afwijking van
+  het byte-voor-byte behoud in AGENTS §12/§13. Bestaande XMP-namespaces, waarden,
+  overige keywords, PM-velden en Lightroom `crs:`-ontwikkelinstellingen blijven
+  behouden, evenals encoding/BOM. GridTag-metadata gebruikt de standaardvelden;
+  eigen tracking mag in een aparte GridTag-namespace. Compatibiliteit moet met
+  fixtures en later met beide echte applicaties worden gecontroleerd.
 - [ ] Eerst standalone mapverwerking, `review.csv`, handmatige nummers en
   `--apply`; **`--stints` volgt samen met driverresolutie uit taken 12/13**.
   Dit is een voorgestelde fasering, geen volledige uitvoering van taak 11:
@@ -113,3 +117,17 @@ Voorstel voor de volgende prompt:
 > Lees TODO.md en AGENTS.md volledig. Bespreek eerst de drie openstaande
 > keuzes onder 'Eerst bevestigen met de eigenaar'. Voer daarna de goedgekeurde
 > standalone-scope uit, met behoud van de bestaande wijzigingen en workflows.
+
+## Controle bij hervatting
+
+Op 2 oktober 2026 zijn AGENTS.md, TODO.md, README en de huidige tekstbestanden
+onder docs/ en samples/ opnieuw gelezen, inclusief de zes XMP-referenties.
+De bestaande standalone-voorbereiding is volledig gecontroleerd:
+
+- `dotnet build XiPHiAS.GridTag.slnx --no-restore`: geslaagd, 0 warnings/errors.
+- `dotnet test XiPHiAS.GridTag.slnx --no-build --no-restore`: 176 tests geslaagd
+  (149 Core, 27 CLI).
+
+Bij deze controle waren de drie keuzes onder 'Eerst bevestigen met de eigenaar' voorgelegd en
+nog open. De actuele goedkeuring staat bij de betreffende keuze hierboven. Concrete adapters, XMP-writer en
+het tag-commando zijn in deze hervatting nog niet geïmplementeerd.

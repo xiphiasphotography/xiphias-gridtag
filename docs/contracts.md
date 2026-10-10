@@ -24,3 +24,19 @@ Manifest and results samples declare schemaVersion 1 and use UTF-8 without BOM.
 The session sample currently has no schemaVersion; this conflicts with the
 versioning requirement and is recorded in open-questions.md. Samples are retained
 unchanged pending clarification, rather than silently changing the contract.
+
+## Standalone XMP preservation agreement
+
+Approved by the owner on 2026-10-03: XDocument reserialization may change XML
+formatting, while non-GridTag XML content and values must remain exact.
+This explicitly relaxes the byte-for-byte formatting requirement in AGENTS.md
+sections 12/13. Preserve unrelated properties, namespace identities, existing
+non-GridTag keywords, Photo Mechanic metadata, Lightroom crs develop settings,
+and the existing file's encoding/BOM.
+
+GridTag-owned metadata uses the standard XMP properties specified in AGENTS.md
+section 3.4. A separate GridTag namespace may hold ownership/tracking data; it
+does not replace standard metadata properties. Compatibility with Photo Mechanic
+and Lightroom is required. Automated fixtures must cover preservation and
+idempotency; real-application interoperability remains to be verified when the
+writer is implemented. This agreement does not change manifest/results JSON.

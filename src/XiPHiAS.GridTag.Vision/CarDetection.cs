@@ -146,7 +146,7 @@ public static class YoloPostprocessor
     }
 }
 
-/// <summary>ONNX Runtime car detector using DirectML.</summary>
+/// <summary>ONNX Runtime car detector using DirectML or the local CPU.</summary>
 public sealed class OnnxCarDetector : ICarDetector, IDisposable
 {
     private readonly CarDetectorConfig config;
@@ -154,13 +154,14 @@ public sealed class OnnxCarDetector : ICarDetector, IDisposable
     private readonly string inputName;
 
     /// <summary>Loads the model and pins all inputs to the requested runtime configuration.</summary>
-    public OnnxCarDetector(CarDetectorConfig config)
+    public OnnxCarDetector(CarDetectorConfig config, bool useDirectML = true)
     {
         this.config = config ?? throw new ArgumentNullException(nameof(config));
         using var sessionOptions = new SessionOptions();
         sessionOptions.EnableMemoryPattern = false;
         sessionOptions.ExecutionMode = ExecutionMode.ORT_SEQUENTIAL;
-        sessionOptions.AppendExecutionProvider_DML(config.DeviceId);
+        if (useDirectML)
+            sessionOptions.AppendExecutionProvider_DML(config.DeviceId);
         session = new InferenceSession(config.ModelPath, sessionOptions);
         try
         {

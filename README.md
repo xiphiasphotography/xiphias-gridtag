@@ -221,6 +221,13 @@ De lokale PaddleOCR-modellen kunnen nu ook startnummers lezen via
 toegepast. De ResNet-normalisatie is voorlopig een expliciete aanname; de
 classifier levert in deze modus merk-evidence uit straatwagenklassen.
 Zie [taak 10a: modellen, opdrachten en echte voor/nameting](docs/task10a-evaluation.md).
+De CR2-meting met `samples/ground-truth.csv` staat in
+[taak 10a: echte CR2-foto's](docs/task10a-cr2-evaluation.md).
+De herhaling met `samples/ground-truth.jpg.csv` staat in
+[taak 10a: echte JPEG-foto's](docs/task10a-jpg-evaluation.md).
+Wanneer DirectML niet beschikbaar is, kun je bij `run` en `eval` met
+`--vision-config` expliciet `--detector-provider cpu` gebruiken. Standaard blijft
+`directml`; deze keuze verandert geen detectie- of matchingdrempels.
 
 De meting op `.training/images2` met de bijgewerkte entrylist staat in
 [taken 10a/10b: images2-evaluatie](docs/task10-images2-evaluation.md).

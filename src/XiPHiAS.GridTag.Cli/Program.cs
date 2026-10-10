@@ -241,8 +241,13 @@ public static class CliApp
 
 	private static ICarDetector CreateCarDetector(IReadOnlyDictionary<string, string> options)
 	{
+		var provider = options.GetValueOrDefault("detector-provider", "directml");
+		if (provider is not ("directml" or "cpu"))
+			throw new InvalidDataException("--detector-provider must be directml or cpu.");
+		if (options.ContainsKey("detector-provider") && !options.ContainsKey("vision-config"))
+			throw new InvalidDataException("--detector-provider requires --vision-config.");
 		return options.TryGetValue("vision-config", out var configPath)
-			? new OnnxCarDetector(CarDetectorConfig.Load(configPath))
+			? new OnnxCarDetector(CarDetectorConfig.Load(configPath), useDirectML: provider == "directml")
 			: new NullCarDetector();
 	}
 
