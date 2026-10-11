@@ -221,6 +221,11 @@ De lokale PaddleOCR-modellen kunnen nu ook startnummers lezen via
 toegepast. De ResNet-normalisatie is voorlopig een expliciete aanname; de
 classifier levert in deze modus merk-evidence uit straatwagenklassen.
 Zie [taak 10a: modellen, opdrachten en echte voor/nameting](docs/task10a-evaluation.md).
+Naam-evidence leest nu een begrensde geometrische voorruit/zijraamcrop.
+`--car-model-format entrylist-rgb` of `entrylist-imagenet` valideert een classifier
+tegen de exacte automodellen van de gekozen entrylist. Hiervoor zijn passende
+modelgewichten nodig: de aanwezige 196-klassen-ResNet is uitsluitend een
+merkproef. Zie [modelvereisten en raamcrop-meting](docs/task10a-window-evaluation.md).
 De CR2-meting met `samples/ground-truth.csv` staat in
 [taak 10a: echte CR2-foto's](docs/task10a-cr2-evaluation.md).
 De herhaling met `samples/ground-truth.jpg.csv` staat in
@@ -289,9 +294,43 @@ Voer taak 4 uit (NumberMatcher) met tests voor: sterke enkele hypothese, verwarb
 
 ## Lightroom-plugin installeren (na taak 7)
 
+De plug-in is een map met Lua-bestanden en hoeft niet gecompileerd te worden.
+Alleen de aparte C#-CLI (`gridtag.exe`) moet gebouwd/gepubliceerd zijn om foto's te verwerken.
+Krijg je bij een oudere kopie een fout bij het lezen van het metadata-schema,
+werk dan de volledige plug-inmap bij en gebruik **Opnieuw laden** in de Plug-in Manager
+(of herstart Lightroom). Kies de map die `Info.lua` bevat, niet de bovenliggende `lightroom`-map.
+
+Schema-regressietest (Lua 5.1): `lua tests/GridTag.Lua.Tests/test_metadata.lua`.
+
 1. Lightroom Classic → **Bestand → Plug-in Manager → Toevoegen** → kies `lightroom/XiPHiAS.GridTag.lrdevplugin`.
 2. Menu **Bibliotheek → Plug-in-extra's → XiPHiAS GridTag: instellingen…**: pad naar `gridtag.exe`, `entrylist.csv` en `session.json`.
 3. Selecteer de foto's van de map, gebruik **XiPHiAS GridTag: tag Picks**.
+
+
+### Herkenningsmodellen vanuit Lightroom
+
+Automatische `tag Picks` gebruikt nu de bestaande YOLOX-autodetector en
+PaddleOCR-nummerreader op CPU. De herkenningsdrempels blijven ongewijzigd.
+Handmatige nummers worden zonder visionmodellen door de CLI gevalideerd.
+
+In **instellingen** kies je bij **Herkenningsmap (Models + samples)** de projectmap,
+bijvoorbeeld `S:\GitHub\xiphias-gridtag`. Deze moet bevatten:
+
+- `samples/detector.yolox.json` (modelpad relatief aan deze JSON);
+- `Models/car-detection/yolox_s.onnx`;
+- `Models/driver-name/PP-OCRv6_det_small.onnx`;
+- `Models/driver-name/latin_PP-OCRv5_rec_mobile.onnx`;
+- `Models/driver-name/ppocrv5_latin_dict.txt`.
+
+Bij de plug-in in de repository wordt de projectmap automatisch afgeleid.
+Bij een gekopieerde plug-in kies je deze map via **Bladeren…** en **Opslaan**.
+Ontbrekende bestanden geven een fout voordat de CLI wordt gestart.
+Extra automodel-/naam-evidence is in deze Lightroom-aanroep nog niet ingeschakeld.
+
+De lokale proef op XIP_2869, XIP_2876 en XIP_2885 (CR2) met de sample-entrylist
+levert drie `review`-resultaten met `largest_car_unresolved`. Autodetectie werkt,
+maar de nummers zijn niet zeker genoeg voor automatische metadata. Deze foto's
+horen in **GridTag Review**; dit is geen bevestiging van correcte nummerherkenning.
 
 ## Belangrijke open punten (te testen in Lightroom)
 
@@ -329,3 +368,55 @@ Halen twee of meer criteria niet, dan is een lichtere variant (handmatig invulle
 - Controleer de licentie van elk model en pakket (Ultralytics YOLO is AGPL-3.0; kies voor commercieel gebruik een ruimhartig gelicentieerd alternatief).
 - `json.lua` (rxi) is MIT; bewaar de licentietekst in het bestand.
 - Foto's en entrylists verlaten je machine niet.
+
+Bij de drie bestandspaden in de Lightroom-instellingen staat **Bladeren…**: kies respectievelijk een EXE-, CSV- of JSON-bestand. Je kunt het pad ook blijven typen of plakken. Annuleren van de bestandskiezer behoudt het huidige pad.
+
+De automatische Lightroom-actie verwerkt Picks uit de selectie; zonder selectie gebruikt zij alle Picks in de huidige filmstrip (map/collectie en actieve filters). Handmatige verwerking vereist een selectie. Kies de bestandspaden via Bladeren en klik Opslaan; heropen de instellingen om de bewaarde paden te controleren.
+
+### Copy Name en exportbestandsnaam
+
+Op verzoek van de eigenaar vult de Lightroom-plug-in bij `auto`/`manual` ook
+**Copy Name** met de gegenereerde headline, bijvoorbeeld
+`#69 Emil Frey Racing Ferrari 296 GT3 EVO`. Review/noCar wijzigt Copy Name niet;
+handmatige resultaten blijven beschermd. De originele bestandsnaam blijft behouden.
+Copy Name bevat geen bestandsextensie, bestandsnaam of exportformaat.
+
+In Lightroom **Exporteren → Bestandsnaamgeving → Naam wijzigen → Bewerken**
+maak je een sjabloon met de tokens **Copy Name**, een letterlijk `-`,
+**Filename** (zonder extensie), een letterlijk `-` en **Custom Text**.
+Vul bij Custom Text `1920` in en kies JPEG en een lange zijde van 1920 pixels.
+Je kunt ook een apart exportpreset maken met het letterlijke achtervoegsel `-1920`.
+Dit geeft `#69 Emil Frey Racing Ferrari 296 GT3 EVO-XIP_2876-1920.jpg`.
+`[SIZE]` is hier jouw formaatlabel, geen automatisch GridTag-token: pas het
+label en de exportafmetingen samen aan bij een ander formaat.
+
+SDK: https://archive.stecman.co.nz/files/docs/lightroom-sdk/API-Reference/modules/LrPhoto.html
+Exporttemplates: https://helpx.adobe.com/lightroom-classic/desktop/import-photos/filename-template-editor-text-template.html
+
+De Lightroom-plug-in vult bij auto/manual ook **Title** met dezelfde gegenereerde tekst als **Headline** en **Copy Name**, per foto op basis van de gematchte deelnemer. Review/noCar houdt bestaande waarden. Laad de plug-in opnieuw en verwerk bestaande foto's opnieuw om Title te vullen.
+
+### Herkenning debuggen
+
+De Lightroom-plug-in schrijft per run `recognition-debug.jsonl` in de tijdelijke
+GridTag-werkmap, naast `cli.log`, manifest en resultaten. De voltooiingsmelding
+vermeldt het logpad. Laad na bijwerken de plug-in opnieuw; de CLI moet eveneens
+bijgewerkt zijn. De CLI-optie is `run ... --debug-log <pad>`.
+
+Het lokale JSONL-log bevat configuratie/modelpaden, foto-ID en pad, previewafmetingen,
+autoboxen, nummerhypothesen met kansen, matcherbeslissingen en finale resultaten.
+Een lege `hypotheses`-lijst betekent dat de nummerreader geen kandidaten teruggeeft;
+een matchregel toont waarom een gelezen nummer niet is geaccepteerd. Review is
+geen garantie dat er een gekozen nummer beschikbaar is. Het log verandert geen
+herkenningsdrempels en schrijft geen foto's of sidecars.
+
+De debugproef op de eerdere drie GTWC-CR2's toont 160×120 previews en lege OCR-lijsten.
+Dit wijst op te kleine RAW-previews; de Porsche Carrera Cup-batch is hiermee nog
+niet onderzocht. Logbestand van deze proef: `work/lightroom-debug.jsonl`.
+
+RAW-previewselectie kiest nu de grootste decodeerbare ingebedde JPEG op pixeloppervlak, in plaats van alleen de EXIF-thumbnail. JPEG-invoer blijft ongewijzigd. Corrupte/ongeschikte JPEG-kandidaten worden overgeslagen; als geen ingebedde JPEG beschikbaar is, blijft de bestaande decodefallback gelden. Bij CR2 kan dit een volledige 5472x3648-preview betekenen en meer verwerkingstijd/geheugen kosten.
+
+Tijdens Lightroom-verwerking toont GridTag de standaard voortgangsbalk linksboven in Lightroom: modellen laden, herkenning met aantal afgeronde foto's, daarna metadata toepassen. De teller wordt elke halve seconde bijgewerkt via een lokaal progress.json-bestand. De balk telt foto's, niet verstreken tijd. De balk biedt momenteel geen annuleren van de externe CLI.
+
+De voortgangstekst toont nu de huidige foto als **Foto 3/12 — XIP_3041.CR2**. De balk telt afgeronde foto's; tijdens metadata toepassen verandert de tekst naar die fase.
+
+GridTag kan tijdens herkenning via het kruisje bij de Lightroom-taak worden gestopt. De CLI controleert een lokaal cancel-bestand tussen foto's: de huidige foto/modelinitialisatie kan nog tijd kosten. Een gestopte batch bewaart afgeronde resultaten en past metadata toe voor de afgeronde auto/manual-foto's; tijdens catalogustoepassing is Stop uitgeschakeld. CLI-optie: --cancel-file <pad>.

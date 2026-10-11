@@ -98,15 +98,29 @@ public sealed class OnnxCarModelClassifier : ICarModelClassifier, IDisposable
     private readonly string[] labels;
 
     /// <summary>Loads a classifier and its ordered, one-label-per-line vocabulary.</summary>
-    public OnnxCarModelClassifier(string modelPath, string labelsPath, string format = "generic")
+    public OnnxCarModelClassifier(string modelPath, string labelsPath, string format = "generic", IReadOnlyCollection<string>? expectedModels = null)
     {
         labels = File.ReadAllLines(labelsPath);
         if (labels.Length == 0 || labels.Any(string.IsNullOrWhiteSpace))
             throw new InvalidDataException("Car-model labels must be nonempty, one per line.");
-        if (format is not ("generic" or "stanford-imagenet"))
-            throw new InvalidDataException("Car classifier format must be generic or stanford-imagenet.");
+        if (format is not ("generic" or "stanford-imagenet" or "entrylist-rgb" or "entrylist-imagenet"))
+            throw new InvalidDataException("Car classifier format must be generic, stanford-imagenet, entrylist-rgb or entrylist-imagenet.");
+        if (format is "entrylist-rgb" or "entrylist-imagenet")
+            EntryListCarModelLabels.Validate(labels, expectedModels ??
+                throw new InvalidDataException("Entry-list classifier mode requires the event's model vocabulary."));
         this.format = format;
-        model = new EvidenceCropSession(modelPath, format == "stanford-imagenet");
+        model = new EvidenceCropSession(modelPath, format is "stanford-imagenet" or "entrylist-imagenet");
+        try
+        {
+            var shape = model.OutputShape;
+            if (shape.Length != 2 || (shape[0] != 1 && shape[0] != -1) || shape[1] != labels.Length)
+                throw new InvalidDataException("Car classifier output must be [batch,label count]; the model and vocabulary do not match.");
+        }
+        catch
+        {
+            model.Dispose();
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -191,6 +205,8 @@ internal sealed class EvidenceCropSession : IDisposable
             throw;
         }
     }
+
+    public int[] OutputShape => session.OutputMetadata.Values.Single().Dimensions;
 
     public (float[] Values, int[] Shape)? Run(IPreview preview, DetectedCar car)
     {

@@ -1,0 +1,44 @@
+{
+  "seriesName": "Porsche Carrera Cup France",
+  "eventFullName": "Porsche Carrera Cup France",
+  "location": "Circuit Zandvoort",
+  "defaultSession": "FP2",
+  "sessions": [
+    {
+      "code": "PT",
+      "name": "Paid Test Session",
+      "start": "2026-09-17T13:00:00",
+      "end": "2026-09-17T17:00:00"
+    },
+    {
+      "code": "FP1",
+      "name": "Free Practice 1",
+      "start": "2026-09-18T11:45:00",
+      "end": "2026-09-18T12:25:00"
+    },
+    {
+      "code": "FP2",
+      "name": "Free Practice 2",
+      "start": "2026-09-18T16:35:00",
+      "end": "2026-09-18T17:15:00"
+    },
+    {
+      "code": "Q",
+      "name": "Qualifying",
+      "start": "2026-09-19T10:30:00",
+      "end": "2026-09-19T11:00:00"
+    },
+    {
+      "code": "R1",
+      "name": "Race 1",
+      "start": "2026-09-19T15:45:00",
+      "end": "2026-09-19T16:20:00"
+    },
+    {
+      "code": "R2",
+      "name": "Race 2",
+      "start": "2026-09-20T15:45:00",
+      "end": "2026-09-20T16:20:00"
+    }
+  ]
+}

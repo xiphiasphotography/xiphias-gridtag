@@ -6,6 +6,37 @@ namespace XiPHiAS.GridTag.Cli.Tests;
 
 public sealed class CliTests
 {
+    [Fact]
+    public void RunDebugLogContainsConfigurationPhotoAndFinalResult()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "gridtag-debug-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var manifest = Path.Combine(root, "manifest.json");
+            File.WriteAllText(manifest, "{\"schemaVersion\":1,\"photos\":[{\"id\":1,\"path\":\"missing.CR2\",\"captureTime\":\"2026-09-18T14:00:00\",\"manualNumber\":\"69\"}]}");
+            var log = Path.Combine(root, "debug.jsonl");
+            using var output = new StringWriter();
+            using var error = new StringWriter();
+            Assert.Equal(0, CliApp.Run(["run", "--manifest", manifest, "--entrylist", Path.Combine(RepositoryRoot, "samples", "entrylist.csv"),
+                "--session", Path.Combine(RepositoryRoot, "samples", "session.example.json"), "--out", Path.Combine(root, "results.json"), "--debug-log", log, "--progress-file", Path.Combine(root, "progress.json")], output, error));
+            using var progressState = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "progress.json")));
+            Assert.Equal(1, progressState.RootElement.GetProperty("completed").GetInt32());
+            Assert.Equal(1, progressState.RootElement.GetProperty("total").GetInt32());
+            Assert.Equal(1, progressState.RootElement.GetProperty("current").GetInt32());
+            Assert.Equal(JsonValueKind.Null, progressState.RootElement.GetProperty("fileName").ValueKind);
+            var stages = File.ReadLines(log).Select(line => JsonDocument.Parse(line).RootElement.GetProperty("stage").GetString()).ToArray();
+            Assert.Equal(new[] { "configuration", "photo", "results" }, stages);
+            var cancel = Path.Combine(root, "cancel.request");
+            File.WriteAllText(cancel, "stop");
+            var cancelledOutput = Path.Combine(root, "cancelled.json");
+            Assert.Equal(0, CliApp.Run(["run", "--manifest", manifest, "--entrylist", Path.Combine(RepositoryRoot, "samples", "entrylist.csv"),
+                "--session", Path.Combine(RepositoryRoot, "samples", "session.example.json"), "--out", cancelledOutput, "--cancel-file", cancel], output, error));
+            Assert.Empty(JsonDocument.Parse(File.ReadAllText(cancelledOutput)).RootElement.GetProperty("photos").EnumerateArray());
+            Assert.Contains("gestopt", output.ToString());
+        }
+        finally { Directory.Delete(root, true); }
+    }
     private static readonly string RepositoryRoot = FindRepositoryRoot();
 
     [Theory]

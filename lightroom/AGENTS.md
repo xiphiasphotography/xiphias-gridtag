@@ -320,3 +320,11 @@ A Lightroom-plugin change is done when:
 - owner-facing behaviour changes are reflected in `README.md` where relevant.
 
 Finish work with a short summary: files changed, verification performed, remaining open questions and anything that still requires testing inside Lightroom Classic.
+
+## Owner-authorized Copy Name (11 October 2026)
+
+The owner authorizes copyName as an additional catalog field. For auto/manual write the CLI-generated headline with setRawMetadata, within the existing write gate. Preserve review/noCar values and manual protection. No export logic or filename construction belongs in Lua; Lightroom export templates combine Copy Name, Filename and the size label.
+
+### Owner-authorized Lightroom Title (11 October 2026)
+
+The owner also authorizes catalog title = the CLI-generated headline for auto/manual results, with the same review/manual protections as copyName. This is a Lightroom adapter field-ownership exception; standalone sidecar ownership is unchanged.

@@ -31,7 +31,12 @@ public static class CliApp
 				_ => Usage(error, $"Unknown command '{args[0]}'.")
 			};
 		}
-		catch (FileNotFoundException exception)
+		catch (OperationCanceledException)
+        {
+            output.WriteLine("GridTag gestopt; geen resultaten toegepast.");
+            return 0;
+        }
+        catch (FileNotFoundException exception)
 		{
 			error.WriteLine(exception.Message);
 			return 3;
@@ -60,22 +65,47 @@ public static class CliApp
 			return 2;
 
 		var manifest = GridTagJson.ReadManifest(Required(options, "manifest"));
-		var entryList = new EntryListLoader().Load(Required(options, "entrylist"));
+        using var debugLog = options.TryGetValue("debug-log", out var debugPath)
+            ? new StreamWriter(debugPath, false, new System.Text.UTF8Encoding(false)) { AutoFlush = true } : null;
+        Action<object>? diagnostic = debugLog is null ? null : value => debugLog.WriteLine(JsonSerializer.Serialize(value));
+        diagnostic?.Invoke(new { stage = "configuration", options, toolVersion = ToolVersion });
+        options.TryGetValue("cancel-file", out var cancelPath);
+        Action<int, int>? progress = null;
+        if (options.TryGetValue("progress-file", out var progressPath))
+        {
+            progress = (completed, total) =>
+            {
+                var current = completed < total ? completed + 1 : total;
+                var fileName = completed < total ? Path.GetFileName(manifest.Photos[completed].Path) : null;
+                File.WriteAllText(progressPath + ".tmp", JsonSerializer.Serialize(new { completed, total, current, fileName }));
+                File.Move(progressPath + ".tmp", progressPath, overwrite: true);
+            };
+            progress(0, manifest.Photos.Count);
+        }
+		        var reportProgress = progress;
+        progress = (completed, total) =>
+        {
+
+            reportProgress?.Invoke(completed, total);
+        };
+        var entryList = new EntryListLoader().Load(Required(options, "entrylist"));
 		var context = LoadEventContext(Required(options, "session"));
-		using var modelClassifier = CreateModelClassifier(options);
+		using var modelClassifier = CreateModelClassifier(options, entryList);
 		using var nameReader = CreateNameReader(options);
 		using var paddleReader = CreatePaddleReader(options);
 		var detector = CreateCarDetector(options);
 		using var detectorLifetime = detector as IDisposable;
 		var evidenceFactory = new VisionEvidenceFactory(modelClassifier,
-			options.ContainsKey("driver-name-detector") && paddleReader is not null ? new PaddleDriverNameReader(paddleReader) : nameReader);
+			CreateWindowNameReader(options, paddleReader, nameReader));
 		var pipeline = new TaggingPipeline(entryList, context, new EmbeddedJpegRawPreviewProvider(), detector,
 			paddleReader is not null && options.ContainsKey("number-ocr") ? new PaddleNumberReader(paddleReader) : CreatePlateReader(options),
 			evidenceProvider: CreateEvidenceProvider(options), visualEvidenceProvider: evidenceFactory.Create,
-			burstProcessor: CreateBurstProcessor(options, entryList));
-		var result = pipeline.Process(manifest);
+			burstProcessor: CreateBurstProcessor(options, entryList), diagnostic: diagnostic);
+		var result = pipeline.Process(manifest, progress, () => cancelPath is not null && File.Exists(cancelPath));
+        diagnostic?.Invoke(new { stage = "results", result });
 		GridTagJson.WriteResultFile(Required(options, "out"), result);
 		output.WriteLine($"Processed {result.Photos.Count} photo(s).");
+        if (result.Photos.Count < manifest.Photos.Count) output.WriteLine("GridTag gestopt; afgeronde resultaten bewaard.");
 		return 0;
 	}
 
@@ -116,13 +146,13 @@ public static class CliApp
 		var labels = EvaluationInput.ReadLabels(Required(options, "labels"));
 		var entryList = new EntryListLoader().Load(Required(options, "entrylist"));
 		var context = LoadEventContext(Required(options, "session"));
-		using var modelClassifier = CreateModelClassifier(options);
+		using var modelClassifier = CreateModelClassifier(options, entryList);
 		using var nameReader = CreateNameReader(options);
 		using var paddleReader = CreatePaddleReader(options);
 		var detector = CreateCarDetector(options);
 		using var detectorLifetime = detector as IDisposable;
 		var evidenceFactory = new VisionEvidenceFactory(modelClassifier,
-			options.ContainsKey("driver-name-detector") && paddleReader is not null ? new PaddleDriverNameReader(paddleReader) : nameReader);
+			CreateWindowNameReader(options, paddleReader, nameReader));
 		var pipeline = new TaggingPipeline(entryList, context, new EmbeddedJpegRawPreviewProvider(), detector,
 			paddleReader is not null && options.ContainsKey("number-ocr") ? new PaddleNumberReader(paddleReader) : CreatePlateReader(options),
 			evidenceProvider: CreateEvidenceProvider(options), visualEvidenceProvider: evidenceFactory.Create,
@@ -260,12 +290,20 @@ public static class CliApp
 		return new OnnxPlateReader(new OnnxDigitRecognizer(config), config);
 	}
 
-	private static OnnxCarModelClassifier? CreateModelClassifier(IReadOnlyDictionary<string, string> options)
+	private static OnnxCarModelClassifier? CreateModelClassifier(IReadOnlyDictionary<string, string> options, EntryList entryList)
 	{
 		if (!options.ContainsKey("car-model") && !options.ContainsKey("car-model-labels"))
 			return null;
 		return new OnnxCarModelClassifier(Required(options, "car-model"), Required(options, "car-model-labels"),
-			options.GetValueOrDefault("car-model-format", "generic"));
+			options.GetValueOrDefault("car-model-format", "generic"), entryList.Entries.Select(entry => entry.Car).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+	}
+
+	private static IDriverNameReader? CreateWindowNameReader(IReadOnlyDictionary<string, string> options,
+		PaddleOcrTextReader? paddleReader, OnnxDriverNameReader? nameReader)
+	{
+		IDriverNameReader? reader = options.ContainsKey("driver-name-detector") && paddleReader is not null
+			? new PaddleDriverNameReader(paddleReader) : nameReader;
+		return reader is null ? null : new WindowCropDriverNameReader(reader);
 	}
 
 	private static OnnxDriverNameReader? CreateNameReader(IReadOnlyDictionary<string, string> options)

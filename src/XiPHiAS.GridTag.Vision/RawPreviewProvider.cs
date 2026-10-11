@@ -1,8 +1,6 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using MetadataExtractor;
-using MetadataExtractor.Formats.Exif;
 using XiPHiAS.GridTag.Core;
 
 namespace XiPHiAS.GridTag.Vision;
@@ -59,33 +57,50 @@ public sealed class EmbeddedJpegRawPreviewProvider : IRawPreviewProvider
 
     private static RawPreview? TryReadEmbeddedJpeg(string path)
     {
-        try
+        var bytes = File.ReadAllBytes(path);
+        RawPreview? best = null;
+        for (var offset = 0; offset < bytes.Length - 3; offset++)
         {
-            var directories = ImageMetadataReader.ReadMetadata(path);
-            var directory = directories.OfType<ExifThumbnailDirectory>().FirstOrDefault();
-            if (directory is null || !directory.TryGetInt64(ExifThumbnailDirectory.TagThumbnailLength, out var length) || length <= 0)
-                return null;
-
-            var offset = directory.AdjustedThumbnailOffset;
-            if (!offset.HasValue || offset.Value < 0 || length > int.MaxValue || offset.Value > new FileInfo(path).Length - length)
-                return null;
-            var thumbnail = new byte[(int)length];
-            using (var file = File.OpenRead(path))
+            if (bytes[offset] != 0xff || bytes[offset + 1] != 0xd8 || bytes[offset + 2] != 0xff)
+                continue;
+            var end = FindJpegEnd(bytes, offset);
+            if (end < 0)
+                continue;
+            try
             {
-                file.Position = offset.Value;
-                var read = file.Read(thumbnail, 0, thumbnail.Length);
-                if (read != thumbnail.Length)
-                    return null;
+                using var stream = new MemoryStream(bytes, offset, end - offset, writable: false);
+                using var image = Image.FromStream(stream, false, true);
+                if (best is null || (long)image.Width * image.Height > (long)best.Width * best.Height)
+                    best = new RawPreview(bytes.AsSpan(offset, end - offset).ToArray(), image.Width, image.Height, RawPreviewSource.EmbeddedJpeg);
             }
+            catch (ArgumentException) { } // Non-display JPEGs such as lossless RAW sensor data.
+            catch (OutOfMemoryException) { } // GDI+ also uses this for unsupported JPEG encoding.
+        }
+        return best;
+    }
 
-            using var stream = new MemoryStream(thumbnail, writable: false);
-            using var image = Image.FromStream(stream, useEmbeddedColorManagement: false, validateImageData: true);
-            return new RawPreview(thumbnail, image.Width, image.Height, RawPreviewSource.EmbeddedJpeg);
-        }
-        catch
+    private static int FindJpegEnd(byte[] bytes, int start)
+    {
+        var position = start + 2;
+        var entropy = false;
+        while (position < bytes.Length - 1)
         {
-            return null;
+            if (entropy && bytes[position] != 0xff) { position++; continue; }
+            if (bytes[position++] != 0xff) return -1;
+            while (position < bytes.Length && bytes[position] == 0xff) position++;
+            if (position >= bytes.Length) return -1;
+            var marker = bytes[position++];
+            if (entropy && (marker == 0 || marker is >= 0xd0 and <= 0xd7)) continue;
+            if (marker == 0xd9) return position;
+            if (marker == 0xd8 || marker == 0) return -1;
+            if (marker == 0x01) continue;
+            if (position > bytes.Length - 2) return -1;
+            var length = bytes[position] * 256 + bytes[position + 1];
+            if (length < 2 || length > bytes.Length - position) return -1;
+            position += length;
+            entropy = marker == 0xda;
         }
+        return -1;
     }
 
     private static RawPreview? TryDecodeHalfSize(string path)

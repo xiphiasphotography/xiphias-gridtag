@@ -13,6 +13,7 @@ public sealed class TaggingPipeline
     private readonly Func<ManifestPhoto, IEvidence?>? evidenceProvider;
     private readonly Func<IPreview, DetectedCar, IEvidence?>? visualEvidenceProvider;
     private readonly BurstReviewProcessor? burstProcessor;
+    private readonly Action<object>? diagnostic;
 
     /// <summary>Creates a pipeline from the event context and the vision interfaces.</summary>
     public TaggingPipeline(
@@ -25,7 +26,7 @@ public sealed class TaggingPipeline
         FieldBuilder? fieldBuilder = null,
         Func<ManifestPhoto, IEvidence?>? evidenceProvider = null,
         Func<IPreview, DetectedCar, IEvidence?>? visualEvidenceProvider = null,
-        BurstReviewProcessor? burstProcessor = null)
+        BurstReviewProcessor? burstProcessor = null, Action<object>? diagnostic = null)
     {
         this.entryList = entryList ?? throw new ArgumentNullException(nameof(entryList));
         this.eventContext = eventContext ?? throw new ArgumentNullException(nameof(eventContext));
@@ -37,6 +38,7 @@ public sealed class TaggingPipeline
         this.evidenceProvider = evidenceProvider;
         this.visualEvidenceProvider = visualEvidenceProvider;
         this.burstProcessor = burstProcessor;
+        this.diagnostic = diagnostic;
     }
 
     /// <summary>Processes photos from a source and forwards results to a workflow-specific sink.</summary>
@@ -49,11 +51,20 @@ public sealed class TaggingPipeline
     }
 
     /// <summary>Processes an entire manifest and returns the result file.</summary>
-    public ResultFile Process(Manifest manifest)
+    public ResultFile Process(Manifest manifest, Action<int, int>? progress = null, Func<bool>? shouldStop = null)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        IReadOnlyList<PhotoResult> photos = manifest.Photos.Select(ProcessPhoto).ToArray();
-        if (burstProcessor is not null)
+        var completed = 0;
+        progress?.Invoke(0, manifest.Photos.Count);
+        var processed = new List<PhotoResult>();
+        foreach (var photo in manifest.Photos)
+        {
+            if (shouldStop?.Invoke() == true) break;
+            processed.Add(ProcessPhoto(photo));
+            progress?.Invoke(++completed, manifest.Photos.Count);
+        }
+        IReadOnlyList<PhotoResult> photos = processed;
+        if (burstProcessor is not null && processed.Count == manifest.Photos.Count)
             photos = burstProcessor.Apply(manifest, photos);
         return new ResultFile(1, "0.1.0", DateTimeOffset.UtcNow, photos);
     }
@@ -63,6 +74,7 @@ public sealed class TaggingPipeline
     {
         ArgumentNullException.ThrowIfNull(photo);
 
+        diagnostic?.Invoke(new { stage = "photo", photo.Id, photo.Path, manual = !string.IsNullOrWhiteSpace(photo.ManualNumber) });
         var session = ResolveSession(photo);
         try
         {
@@ -70,10 +82,12 @@ public sealed class TaggingPipeline
                 return ProcessManualPhoto(photo, session);
 
             var preview = rawPreviewProvider.GetPreview(photo.Path);
+            diagnostic?.Invoke(new { stage = "preview", photo.Id, available = preview is not null, width = preview?.Width, height = preview?.Height });
             if (preview is null)
                 return new PhotoResult(photo.Id, "error", ["no_preview"], session, []);
 
             var detections = carDetector.Detect(preview).ToArray();
+            diagnostic?.Invoke(new { stage = "detections", photo.Id, detections });
             if (detections.Length == 0)
                 return new PhotoResult(photo.Id, "noCar", ["no_car_detected"], session, []);
 
@@ -98,6 +112,7 @@ public sealed class TaggingPipeline
         foreach (var detection in orderedDetections)
         {
             var hypotheses = plateReader.ReadNumbers(preview, detection);
+            diagnostic?.Invoke(new { stage = "ocr", photo.Id, detection, hypotheses });
             if (hypotheses.Count == 0)
             {
                 if (ReferenceEquals(detection, largestDetection))
@@ -127,6 +142,7 @@ public sealed class TaggingPipeline
                         match = match with { Status = MatchStatus.Review, Reasons = match.Reasons.Concat(conflicts).Distinct().ToArray() };
                 }
             }
+            diagnostic?.Invoke(new { stage = "match", photo.Id, detection, match });
             if (match.Status == MatchStatus.Auto)
             {
                 if (!entryList.TryGetEntry(match.BestNumber!, out _))

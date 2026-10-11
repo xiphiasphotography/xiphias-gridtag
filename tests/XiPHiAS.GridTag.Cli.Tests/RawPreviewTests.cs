@@ -80,6 +80,31 @@ public sealed class RawPreviewTests
         }
     }
 
+    [Fact]
+    public void Provider_SelectsLargestEmbeddedJpegDespiteEarlierThumbnailAndCorruptCandidate()
+    {
+        static byte[] Jpeg(int width, int height)
+        {
+            using var bitmap = new Bitmap(width, height);
+            using var stream = new MemoryStream();
+            bitmap.Save(stream, ImageFormat.Jpeg);
+            return stream.ToArray();
+        }
+        var large = Jpeg(800, 600);
+        var bytes = new byte[] { 0, 1, 2 }.Concat(Jpeg(160, 120))
+            .Concat(new byte[] { 255, 216, 255, 224, 0, 1, 255, 217 })
+            .Concat(large).Concat(Jpeg(320, 240)).ToArray();
+        var path = WriteTempFile(bytes, ".cr2");
+        try
+        {
+            var preview = Assert.IsType<RawPreview>(new EmbeddedJpegRawPreviewProvider().GetPreview(path));
+            Assert.Equal(800, preview.Width);
+            Assert.Equal(600, preview.Height);
+            Assert.Equal(large, preview.JpegBytes);
+            Assert.Equal(RawPreviewSource.EmbeddedJpeg, preview.Source);
+        }
+        finally { File.Delete(path); }
+    }
     private static string WriteTempFile(byte[] bytes, string extension)
     {
         var path = Path.Combine(Path.GetTempPath(), $"gridtag-preview-{Guid.NewGuid():N}{extension}");

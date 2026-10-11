@@ -335,3 +335,10 @@ Build and tests green · no new warnings · docs/contracts updated if any contra
 
 - If a requirement is ambiguous, propose the smallest reasonable interpretation and note it in your summary instead of stalling. Ask before: changing a contract, adding a top-level project, adding a dependency with a non-permissive licence, or touching anything outside the field ownership of §3.4.
 - Finish each task with: what changed, how it was verified (commands run), what remains, and any new open question.
+### Owner-authorized Lightroom field extension (11 October 2026)
+
+The owner explicitly authorizes writing copyName in the Lightroom adapter for auto/manual results. Set it to the generated headline as the export prefix. Filename and size are combined by the owner's Lightroom export template. This is a Lightroom-only exception to section 3.4; standalone sidecar ownership stays unchanged. Preserve Copy Name for review/noCar and protect manual status.
+
+### Owner-authorized Lightroom Title (11 October 2026)
+
+The owner also authorizes catalog title = the CLI-generated headline for auto/manual results, with the same review/manual protections as copyName. This is a Lightroom adapter field-ownership exception; standalone sidecar ownership is unchanged.

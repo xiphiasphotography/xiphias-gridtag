@@ -20,7 +20,16 @@ function Results.read(path)
     return result
 end
 
-function Results.validateForManifest(results, manifest)
+function Results.validateForManifest(results, manifest, stopped)
+    if stopped then
+        if #results.photos > #manifest.photos then error("Te veel resultaten na stoppen") end
+        for index, photo in ipairs(results.photos) do
+            if photo.id ~= manifest.photos[index].id then error("Onverwachte resultaatvolgorde na stoppen") end
+        end
+        local completed = {}
+        for index = 1, #results.photos do completed[index] = manifest.photos[index] end
+        manifest = { photos = completed }
+    end
     local expected = {}
     for _, photo in ipairs(manifest.photos) do expected[photo.id] = true end
     local actual = {}

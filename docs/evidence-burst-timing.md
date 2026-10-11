@@ -147,3 +147,44 @@ De samplepaden zijn hier niet aanwezig. Deze eerdere run bewijst geen herkenning
 Historische meting van de eerdere uitbreiding:
 
 De bestaande sample/eval-run vóór deze uitbreiding had geen automatische detecties: `auto precision 0%`, `recall 0%`, `review rate 0%`, en `no_car_detected` voor alle 241 labels. Zonder modelconfiguratie blijven de na-metingen gelijk; de nieuwe evidencebronnen worden pas meetbaar zodra echte modelobservaties of timingdata worden aangesloten. Thresholds zijn niet aangepast.
+
+### Entrylist-modellen en raamnaam-OCR (10 oktober 2026)
+
+`--car-model-format entrylist-rgb` of `entrylist-imagenet` kiest model-evidence
+voor de exacte automodellen uit de gekozen event-entrylist. De labeltekst moet
+ieder verschillend `car`-veld precies eenmaal bevatten; de volgorde blijft die
+van de model-export. De ONNX-output moet `[batch,label count]` zijn. Een verkeerde
+vocabulary of outputvorm wordt bij het laden geweigerd. Dit model maakt nooit
+nieuwe startnummerkandidaten aan.
+
+`entrylist-rgb` gebruikt de bestaande nearest-neighbour RGB NCHW preprocessing
+met waarden 0–1. `entrylist-imagenet` gebruikt bilineaire resize en RGB/ImageNet
+mean `[0.485,0.456,0.406]`, std `[0.229,0.224,0.225]`. De export moet expliciet
+voor de gekozen preprocessing zijn gemaakt; dit zijn geen universele vereisten.
+
+De fixture heeft acht racemodellen en één afzonderlijke Volvo-testauto. De acht
+racemodellen staan als voorbeeld in `samples/car-model.entrylist-labels.txt`.
+Die voorbeeldvolgorde is geen bewijs van de outputvolgorde van enig model.
+Een event-entrylist met de Volvo bevat negen modellen en vereist dus negen
+labels/outputklassen, of een apart gekozen event-entrylist zonder die testregel.
+De CLI filtert nooit zelf deelnemers weg.
+
+De aanwezige `Models/car-model/resnet50_cars_enhanced.onnx` heeft 196 Stanford
+Cars-klassen en is geen achtklassen-GT3-model. Het wordt met de achtlabelsfile
+terecht geweigerd. `stanford-imagenet` blijft beschikbaar voor de bestaande
+merkproef; er wordt geen GT3-model uit straatwagenklassen afgeleid.
+
+Bij `run` en `eval` worden beide naam-OCR-adapters nu gewrapt in
+`WindowCropDriverNameReader`. De crop gebruikt 10–90% van de breedte en 10–55%
+van de hoogte van de tot het beeld begrensde autobox. Dit is een geometrische
+schatting voor voorruit/zijramen, geen getrainde raamsegmentatie; hoek,
+afdekking en camera-standpunt kunnen namen buiten de crop plaatsen. Er is
+geen fallback naar de volledige auto bij ongeldige/ontbrekende boxen.
+
+Nummer-OCR blijft de oorspronkelijke volledige autobox gebruiken. Raam-OCR
+krijgt een nieuwe box, zodat de nummer-OCR-cache niet voor de raamcrop wordt
+hergebruikt. Beide rollen delen dezelfde modelsessies maar doen verschillende
+OCR-inferentie. Readers worden uitsluitend bij onzekere bestaande kandidaten
+aangeroepen. Bestaande IEvidence-gewichten en matchingthresholds blijven gelijk.
+Dit is bewijs voor een vermelde kandidaat, geen identificatie van de huidige
+rijder uit driver-board/stints. Zie [raamcrop-evaluatie](task10a-window-evaluation.md).

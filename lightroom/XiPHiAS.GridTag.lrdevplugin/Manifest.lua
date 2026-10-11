@@ -7,17 +7,19 @@ local function requireValue(value, name)
     return value
 end
 
-local function selectedPhotos(catalog, manual)
-    local photos = catalog:getMultipleSelectedPhotos()
-    if photos == nil or #photos == 0 then
-        local photo = catalog:getTargetPhoto()
-        photos = photo and { photo } or {}
-    end
+function Manifest.getSelectedPhotos(catalog, manual)
+    -- Automatic runs use the visible filmstrip when there is no selection.
+    if manual and not catalog:getTargetPhoto() then return {} end
+    return catalog:getTargetPhotos() or {}
+end
+
+local function selectedPhotos(catalog, manual, photos)
+    photos = photos or Manifest.getSelectedPhotos(catalog, manual)
 
     local result = {}
     for _, photo in ipairs(photos) do
         local pickStatus = photo:getRawMetadata("pickStatus")
-        local manualNumber = photo:getRawMetadata("manualNumber")
+        local manualNumber = photo:getPropertyForPlugin(_PLUGIN, "manualNumber")
         if (manual and manualNumber and manualNumber ~= "") or (not manual and pickStatus == 1) then
             result[#result + 1] = {
                 id = photo.localIdentifier,
@@ -31,8 +33,8 @@ local function selectedPhotos(catalog, manual)
     return result
 end
 
-function Manifest.build(catalog, manual)
-    local photos = selectedPhotos(catalog, manual)
+function Manifest.build(catalog, manual, selected)
+    local photos = selectedPhotos(catalog, manual, selected)
     return { schemaVersion = 1, photos = photos }
 end
 

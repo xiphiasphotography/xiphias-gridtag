@@ -7,7 +7,7 @@ return {
         {
             title = "XiPHiAS GridTag: tag Picks",
             file = "Runner.lua",
-            enabledWhen = "photosSelected",
+
         },
         {
             title = "XiPHiAS GridTag: verwerk handmatige nummers",
@@ -20,5 +20,5 @@ return {
         },
     },
     LrMetadataProvider = "Metadata.lua",
-    LrMetadataTagset = "Tagset.lua",
+    LrMetadataTagsetFactory = "Tagset.lua",
 }
