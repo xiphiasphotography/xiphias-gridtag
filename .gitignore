@@ -35,3 +35,5 @@ Thumbs.db
 # Training and deprecated models
 # .training/
 Models/DEPRECATED/
+
+.source/

@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>gridtag</AssemblyName>
+    <ApplicationIcon>..\..\Assets\App.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../XiPHiAS.GridTag.Core/XiPHiAS.GridTag.Core.csproj" />
