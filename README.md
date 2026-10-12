@@ -226,6 +226,8 @@ Naam-evidence leest nu een begrensde geometrische voorruit/zijraamcrop.
 tegen de exacte automodellen van de gekozen entrylist. Hiervoor zijn passende
 modelgewichten nodig: de aanwezige 196-klassen-ResNet is uitsluitend een
 merkproef. Zie [modelvereisten en raamcrop-meting](docs/task10a-window-evaluation.md).
+De [hermeting op alle 181 beschikbare trainingsfoto's](docs/task10a-training-recheck.md)
+meet raamnaam-evidence afzonderlijk; een getrainde achtklassen-classifier ontbreekt nog.
 De CR2-meting met `samples/ground-truth.csv` staat in
 [taak 10a: echte CR2-foto's](docs/task10a-cr2-evaluation.md).
 De herhaling met `samples/ground-truth.jpg.csv` staat in
